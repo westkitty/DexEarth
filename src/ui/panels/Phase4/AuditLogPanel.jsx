@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Panel, CollapsibleSection, Button, StatusBadge, UI_TOKENS } from '../components/core.jsx'
-import { subscribeAudit, clearAuditHistory, loadAuditHistory } from '../../utils/auditLog.js'
+import { Panel, CollapsibleSection, Button, StatusBadge, UI_TOKENS } from '../../components/core.jsx'
+import { subscribeAudit, clearAuditHistory, loadAuditHistory } from '../../../utils/auditLog.js'
 
 export default function AuditLogPanel() {
     const [events, setEvents] = useState([])

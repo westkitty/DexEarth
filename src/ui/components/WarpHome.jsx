@@ -1,8 +1,8 @@
 // ─── Warp Home Button ────────────────────────────────────────────────────────
 import { useEffect, useState } from 'react'
 import * as Cesium from 'cesium'
-import { viewStore, subscribeViewStore } from '../../../state/viewStore.js'
-import { uiStore } from '../../../state/uiStore.js'
+import { viewStore, subscribeViewStore } from '../../state/viewStore.js'
+import { uiStore } from '../../state/uiStore.js'
 
 export default function WarpHome({ viewer }) {
     const [store, setStore] = useState(viewStore)

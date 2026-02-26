@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Panel, CollapsibleSection, UI_TOKENS } from '../components/core.jsx'
+import { Panel, CollapsibleSection, UI_TOKENS } from '../../components/core.jsx'
 import DiagnosticsPanel from './DiagnosticsPanel.jsx'
 
 export default function HelpPanel() {

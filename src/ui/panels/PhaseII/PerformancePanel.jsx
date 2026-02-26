@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Panel, CollapsibleSection, Button, StatusBadge, UI_TOKENS } from '../components/core.jsx'
+import { Panel, CollapsibleSection, Button, StatusBadge, UI_TOKENS } from '../../components/core.jsx'
 import { subscribePerf } from '../../../diagnostics/perfMonitor.js'
 import { deactivateSafeMode } from '../../../visuals/styleManager.js'
 

@@ -2,6 +2,8 @@
 import React, { useState } from 'react'
 import { UI_TOKENS } from './tokens.js'
 
+export { UI_TOKENS }
+
 export function Panel({ children, style = {} }) {
     return (
         <div style={{

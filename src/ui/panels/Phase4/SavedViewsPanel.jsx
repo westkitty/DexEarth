@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Panel, CollapsibleSection, Button, UI_TOKENS } from '../components/core.jsx'
+import { Panel, CollapsibleSection, Button, UI_TOKENS } from '../../components/core.jsx'
 import { subscribeViewStore, saveView, deleteView } from '../../../state/viewStore.js'
 import ScenarioPanel from './ScenarioPanel.jsx'
 

@@ -1,4 +1,4 @@
-import { Panel, CollapsibleSection, Button, UI_TOKENS } from '../components/core.jsx'
+import { Panel, CollapsibleSection, Button, UI_TOKENS } from '../../components/core.jsx'
 import { exportScenario, importScenarioFile } from '../../../storage/exports.js'
 
 export default function ScenarioPanel({ viewer, toggles }) {

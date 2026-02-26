@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Panel, CollapsibleSection, StatusBadge, UI_TOKENS } from '../../components/core.jsx'
 import { subscribeToAudit } from '../../../diagnostics/uiAudit.js'
-import { datasetRegistry } from '../../../data/datasetRegistry.js'
+import { DATASETS } from '../../../data/datasetRegistry.js'
 import { getOrFetchDataset } from '../../../storage/cache.js'
 
 export default function DiagnosticsPanel() {
@@ -15,7 +15,7 @@ export default function DiagnosticsPanel() {
         // Check dataset registry vs actual cache status
         const checkDatasets = async () => {
             const results = []
-            for (const ds of Object.values(datasetRegistry)) {
+            for (const ds of Object.values(DATASETS)) {
                 try {
                     // Try a peek without forcing a fetch
                     const info = await getOrFetchDataset(ds.id, { returnUrlOnly: true })

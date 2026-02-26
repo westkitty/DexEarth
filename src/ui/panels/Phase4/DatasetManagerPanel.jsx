@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Panel, CollapsibleSection, Button, StatusBadge, UI_TOKENS } from '../components/core.jsx'
-import { getRegisteredDatasets } from '../../data/datasetRegistry.js'
-import { getCached, pinDataset, unpinDataset, importCustomDataset, deleteCached, lastFetched } from '../../storage/cache.js'
+import { Panel, CollapsibleSection, Button, StatusBadge, UI_TOKENS } from '../../components/core.jsx'
+import { getRegisteredDatasets } from '../../../data/datasetRegistry.js'
+import { getCached, pinDataset, unpinDataset, importCustomDataset, deleteCached, lastFetched } from '../../../storage/cache.js'
 
 export default function DatasetManagerPanel() {
     const datasets = getRegisteredDatasets()
