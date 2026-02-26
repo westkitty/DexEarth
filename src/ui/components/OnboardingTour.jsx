@@ -27,11 +27,30 @@ export default function OnboardingTour() {
     const [tourActive, setTourActive] = useState(false)
     const [stepIndex, setStepIndex] = useState(-1)
     const [modalPos, setModalPos] = useState({ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0 })
+    const [isFullscreen, setIsFullscreen] = useState(false)
+
+    useEffect(() => {
+        const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement)
+        document.addEventListener('fullscreenchange', handleFullscreenChange)
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }, [])
+
+    const toggleFullscreen = useCallback(() => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.warn(`Error attempting to enable fullscreen: ${err.message}`)
+            })
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen()
+            }
+        }
+    }, [])
 
     const updateModalPosition = useCallback(() => {
         if (stepIndex === -1) {
             // Welcome screen - center
-            setModalPos({ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 1 })
+            setModalPos({ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 1, right: 'auto', bottom: 'auto' })
             return
         }
 
@@ -40,25 +59,26 @@ export default function OnboardingTour() {
 
         const el = document.getElementById(step.targetId)
         if (el) {
-            const rect = el.getBoundingClientRect()
-            // Position modal below the target
+            // Position modal safely at Center Right so it doesn't block the nav bar or drawers
             setModalPos({
-                top: `${rect.bottom + 20}px`,
-                left: `${rect.left + rect.width / 2}px`,
-                transform: 'translateX(-50%)',
+                top: '50%',
+                right: '24px',
+                left: 'auto',
+                bottom: 'auto',
+                transform: 'translateY(-50%)',
                 opacity: 1
             })
             // Ensure the element is visible with a slight pulse
             el.style.animation = 'none'
             void el.offsetWidth // trigger reflow
             el.animate([
-                { boxShadow: '0 0 0px #00FF9F' },
-                { boxShadow: '0 0 20px #00FF9F' },
-                { boxShadow: '0 0 0px #00FF9F' }
+                { boxShadow: '0 0 0px #00FF9F', filter: 'brightness(1)' },
+                { boxShadow: '0 0 20px #00FF9F', filter: 'brightness(1.5)' },
+                { boxShadow: '0 0 0px #00FF9F', filter: 'brightness(1)' }
             ], { duration: 1500, iterations: Infinity })
         } else {
             // Fallback if element not found
-            setModalPos({ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 1 })
+            setModalPos({ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 1, right: 'auto', bottom: 'auto' })
         }
     }, [stepIndex])
 
@@ -158,18 +178,30 @@ export default function OnboardingTour() {
                     <>
                         <h2 style={{ color: '#00FF9F', marginTop: 0, fontSize: '18px', letterSpacing: '2px' }}>WELCOME TO DEXEARTH</h2>
                         <p style={{ fontSize: '12px', lineHeight: 1.6, color: '#CCC' }}>
-                            DexEarth is a tactical, offline-first planetary visualization engine.
+                            DexEarth is a tactical, high-performance planetary visualization engine.
                         </p>
                         <p style={{ fontSize: '12px', lineHeight: 1.6, color: '#CCC' }}>
                             Let's take a quick tour of the interface to get you acquainted with the systems.
                         </p>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                            <button onClick={endTour} style={{
-                                background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', fontSize: '11px', fontFamily: 'monospace'
-                            }}>SKIP</button>
-                            <button onClick={nextStep} style={{
-                                background: '#00FF9F', border: 'none', color: '#000', padding: '6px 16px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontFamily: 'monospace', fontWeight: 'bold'
-                            }}>START TOUR</button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '24px' }}>
+                            <button onClick={toggleFullscreen} style={{
+                                background: isFullscreen ? 'rgba(255,255,255,0.1)' : 'rgba(0,195,255,0.1)',
+                                border: isFullscreen ? '1px solid #888' : '1px solid #00CFFF',
+                                color: isFullscreen ? '#888' : '#00CFFF',
+                                padding: '8px 16px', borderRadius: '4px', cursor: 'pointer',
+                                fontSize: '11px', fontFamily: 'monospace', fontWeight: 'bold', width: '100%',
+                                transition: 'all 200ms ease'
+                            }}>
+                                {isFullscreen ? '⤓ EXIT FULLSCREEN' : '⤢ ENTER FULLSCREEN (RECOMMENDED)'}
+                            </button>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                                <button onClick={endTour} style={{
+                                    background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', fontSize: '11px', fontFamily: 'monospace'
+                                }}>SKIP</button>
+                                <button onClick={nextStep} style={{
+                                    background: '#00FF9F', border: 'none', color: '#000', padding: '6px 16px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontFamily: 'monospace', fontWeight: 'bold'
+                                }}>START TOUR</button>
+                            </div>
                         </div>
                     </>
                 ) : (
