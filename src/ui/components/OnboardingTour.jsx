@@ -150,13 +150,10 @@ export default function OnboardingTour() {
     }, [tourActive, stepIndex, updateModalPosition])
 
     useEffect(() => {
-        const hasToured = localStorage.getItem('dexearth_has_toured')
-        if (!hasToured) {
-            // Slight delay so the app renders first
-            setTimeout(() => setTourActive(true), 1000)
-        }
+        // Slight delay so the app renders first
+        const timer = setTimeout(() => setTourActive(true), 1000)
+        return () => clearTimeout(timer)
     }, [])
-
 
     // Attempt to update position whenever stepIndex changes
     useEffect(() => {
@@ -190,7 +187,6 @@ export default function OnboardingTour() {
                 el.getAnimations().forEach(a => a.cancel())
             }
         })
-        localStorage.setItem('dexearth_has_toured', 'true')
         setTourActive(false)
     }
 
