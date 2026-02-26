@@ -9,6 +9,7 @@ import * as tickCoordinator from './diagnostics/tickCoordinator.js'
 import { initPerfMonitor, stopPerfMonitor } from './diagnostics/perfMonitor.js'
 import { viewStore, saveView } from './state/viewStore.js'
 import PhaseIIRoot from './ui/PhaseIIRoot.jsx'
+import OnboardingTour from './ui/components/OnboardingTour.jsx'
 
 // ─── USER CONFIG ──────────────────────────────────────────────────────────────
 // Set VITE_FIRMS_MAP_KEY in .env (get a free key at https://firms.modaps.eosdis.nasa.gov/api/map_key/)
@@ -1168,6 +1169,8 @@ export default function App() {
         telemetry={telemetry}
         utc={utc}
       />
+
+      <OnboardingTour />
     </div>
   )
 }

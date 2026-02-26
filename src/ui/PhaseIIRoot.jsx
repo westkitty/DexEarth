@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useDrag } from '@use-gesture/react';
+import { useState, useEffect } from 'react'
 import TimeControllerPanel from './panels/PhaseII/TimeControllerPanel.jsx'
 import SatellitesPanel from './panels/PhaseII/SatellitesPanel.jsx'
 import SeismicSimPanel from './panels/PhaseII/SeismicSimPanel.jsx'
@@ -32,9 +33,10 @@ const SECTIONS = [
     { id: 'visuals', label: '🎨 Visuals', color: '#FF00FF', help: 'Manage global render styles, procedural cloud systems, and country boundary overlays.' },
 ]
 
-function TopNavTab({ id, label, color, help, open, onToggle }) {
+function TopNavTab({ id, label, color, help, open, onToggle, containerId }) {
     return (
         <button
+            id={containerId}
             onClick={() => onToggle(id)}
             style={{
                 flex: 1,
@@ -102,6 +104,38 @@ async function runDemoMode(viewer) {
 export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus, telemetry, utc }) {
     const [openSections, setOpenSections] = useState({ data: true })
     const [demoActive, setDemoActive] = useState(false)
+    const [isFullscreen, setIsFullscreen] = useState(false)
+
+    // Free-floating Drag State (Default bottom center)
+    const [pos, setPos] = useState({ x: window.innerWidth / 2 - 300, y: window.innerHeight - 80 })
+
+    const bindDrag = useDrag((params) => {
+        setPos({
+            x: params.offset[0],
+            y: params.offset[1]
+        })
+    }, {
+        from: () => [pos.x, pos.y],
+        bounds: { left: 16, top: 16, right: window.innerWidth - 616, bottom: window.innerHeight - 60 }
+    })
+
+    // Determine if drawer drops UP or DOWN based on Y position (if in top half, drop down)
+    const dropsDown = pos.y < window.innerHeight / 2
+
+    // Listen for external fullscreen exits (e.g. hitting ESC)
+    useEffect(() => {
+        const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement)
+        document.addEventListener('fullscreenchange', handleFsChange)
+        return () => document.removeEventListener('fullscreenchange', handleFsChange)
+    }, [])
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.error(err))
+        } else {
+            document.exitFullscreen().catch(err => console.error(err))
+        }
+    }
 
     function toggleSection(id) {
         // Exclusive accordion behavior for Drawers: closing everything else
@@ -125,7 +159,7 @@ export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus
         const count = telemetry ? telemetry[def.id] : 0
         const statusClass = layerStatus ? layerStatus[def.id] : 'idle'
         const isToggled = toggles ? toggles[def.id] : false
-        
+
         const countLabel = statusClass === 'error'
             ? 'UNAVAILABLE'
             : typeof count === 'string' && count.length > 0
@@ -151,9 +185,9 @@ export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{ fontSize: '10px', color: '#888', fontFamily: 'monospace' }}>{countLabel}</span>
-                    <input 
-                        type="checkbox" 
-                        checked={isToggled} 
+                    <input
+                        type="checkbox"
+                        checked={isToggled}
                         onChange={() => handleToggle && handleToggle(def.id)}
                         style={{ accentColor: '#00FF9F', cursor: 'pointer' }}
                     />
@@ -165,134 +199,153 @@ export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus
     const activeSection = SECTIONS.find(s => openSections[s.id])
 
     return (
-        <>
-            <div style={{
-                position: 'fixed',
-                top: '16px',
-                left: 'max(320px, 30vw)',
-                right: '32px',
-                zIndex: 100,
-                display: 'flex',
-                flexDirection: 'column',
-                pointerEvents: 'none', // Let clicks pass through the container
-            }}>
-                {/* Phase II header / Demo Trigger */}
-                <div style={{
+        <div style={{
+            position: 'fixed',
+            left: pos.x,
+            top: pos.y,
+            zIndex: 100,
+            display: 'flex',
+            flexDirection: dropsDown ? 'column' : 'column-reverse',
+            pointerEvents: 'none', // Let clicks pass through the container wrapper
+            width: '600px', // Fixed width for the free-floating nav
+        }}>
+            {/* Drag Handle & Phase II header */}
+            <div
+                {...bindDrag()}
+                style={{
                     fontFamily: 'monospace', fontSize: '9px', color: '#00FF9F88', letterSpacing: '0.15em',
                     padding: '3px 8px 6px',
-                    display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     pointerEvents: 'auto',
+                    cursor: 'grab',
+                    background: 'linear-gradient(90deg, transparent, rgba(0,255,159,0.05) 50%, transparent)',
+                    borderTop: dropsDown ? '1px solid rgba(0,255,159,0.1)' : 'none',
+                    borderBottom: !dropsDown ? '1px solid rgba(0,255,159,0.1)' : 'none',
+                    touchAction: 'none'
                 }}>
-                    {!demoActive && (
-                        <button onClick={handleDemo} style={{
-                            background: 'rgba(10,15,20,0.8)', border: '1px solid #00FF9F44', color: '#00FF9F88',
-                            fontFamily: 'monospace', fontSize: '9px', cursor: 'pointer', padding: '2px 8px', borderRadius: '2px',
-                            backdropFilter: 'blur(4px)'
-                        }}>
-                            INITIATE DEMO SEQUENCE
-                        </button>
-                    )}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ cursor: 'pointer' }} title="Drag to move Navigation Bar">☷ DEXEARTH NAV</span>
+                    <button onClick={toggleFullscreen} style={{
+                        background: 'transparent', border: '1px solid #00FF9F44', color: '#00FF9F88',
+                        fontFamily: 'monospace', fontSize: '9px', cursor: 'pointer', padding: '1px 4px', borderRadius: '2px',
+                    }} title="Toggle Fullscreen">
+                        {isFullscreen ? '⤓' : '⤢'}
+                    </button>
                 </div>
-
-                {/* Top Navigation Tabs */}
-                <div style={{
-                    display: 'flex',
-                    gap: '2px',
-                    pointerEvents: 'auto',
-                }}>
-                    {SECTIONS.map(sec => (
-                        <TopNavTab
-                            key={sec.id}
-                            id={sec.id} label={sec.label} color={sec.color} help={sec.help}
-                            open={!!openSections[sec.id]}
-                            onToggle={toggleSection}
-                        />
-                    ))}
-                </div>
-
-                {/* Drop-down Glassmorphic Pane */}
-                {activeSection && (
-                    <div className="drawer-pane" style={{
-                        background: 'rgba(10, 15, 20, 0.75)',
-                        backdropFilter: 'blur(16px)',
-                        WebkitBackdropFilter: 'blur(16px)',
-                        border: `1px solid ${activeSection.color}`,
-                        borderTop: 'none',
-                        borderBottomLeftRadius: '6px',
-                        borderBottomRightRadius: '6px',
-                        padding: '16px',
-                        color: '#FFF',
-                        pointerEvents: 'auto',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                        overflowY: 'auto',
-                        maxHeight: 'calc(100vh - 120px)',
-                        position: 'relative',
-                        transition: 'all 150ms ease',
+                {!demoActive && (
+                    <button onClick={handleDemo} style={{
+                        background: 'rgba(10,15,20,0.8)', border: '1px solid #00FF9F44', color: '#00FF9F88',
+                        fontFamily: 'monospace', fontSize: '9px', cursor: 'pointer', padding: '2px 8px', borderRadius: '2px',
+                        backdropFilter: 'blur(4px)'
                     }}>
-                        {/* Static Watermark Background */}
-                        <img
-                            src="/DexEarthLogo.png"
-                            alt=""
-                            style={{
-                                position: 'absolute',
-                                top: '50%',
-                                left: '50%',
-                                width: '300px',
-                                height: 'auto',
-                                transform: 'translate(-50%, -50%)',
-                                opacity: 0.3,
-                                pointerEvents: 'none',
-                                zIndex: 0,
-                                mixBlendMode: 'screen',
-                            }}
-                        />
-
-                        {/* Pane Content Container */}
-                        <div style={{ position: 'relative', zIndex: 1 }}>
-                            {SECTIONS.map(sec => {
-                                if (!openSections[sec.id]) return null;
-                                return (
-                                    <div key={sec.id}>
-                                        <div style={{ marginBottom: '12px', paddingBottom: '8px', borderBottom: `1px solid ${sec.color}44`, display: 'flex', justifyContent: 'space-between' }}>
-                                            <h2 style={{ margin: 0, fontSize: '14px', fontFamily: 'monospace', color: sec.color, letterSpacing: '0.1em' }}>
-                                                {sec.label.toUpperCase()}
-                                            </h2>
-                                            {/* Inject clock into Data and Time panels for visibility */}
-                                            {(sec.id === 'data' || sec.id === 'time') && utc && (
-                                                <span style={{ fontSize: '11px', color: '#888', fontFamily: 'monospace' }}>{utc}</span>
-                                            )}
-                                        </div>
-                                        {sec.id === 'data' && (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                {LAYER_DEFS.map(renderLayerRow)}
-                                            </div>
-                                        )}
-                                        {sec.id === 'time' && <TimeControllerPanel viewer={viewer} />}
-                                        {sec.id === 'satellites' && <SatellitesPanel viewer={viewer} />}
-                                        {sec.id === 'seismic' && <SeismicSimPanel viewer={viewer} />}
-                                        {sec.id === 'views' && <SavedViewsPanel viewer={viewer} toggles={toggles} />}
-                                        {sec.id === 'threat' && <ThreatIndexPanel viewer={viewer} />}
-                                        {sec.id === 'perf' && <PerformancePanel viewer={viewer} />}
-                                        {sec.id === 'datasets' && <DatasetManagerPanel />}
-                                        {sec.id === 'audit' && <AuditLogPanel />}
-                                        {sec.id === 'help' && <HelpPanel />}
-                                        {sec.id === 'visuals' && <VisualsRoot viewer={viewer} />}
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
+                        INITIATE DEMO SEQUENCE
+                    </button>
                 )}
             </div>
 
-            {/* Visuals Root needs to be moved into the SECTIONS array for the new drawer paradigm.
-                For now we'll inject it as an invisible host if no tabs are open just to maintain lifecycle,
-                but ideally it gets its own tab. */}
+            {/* Top Navigation Tabs */}
+            <div style={{
+                display: 'flex',
+                gap: '2px',
+                pointerEvents: 'auto',
+            }}>
+                {SECTIONS.map(sec => (
+                    <TopNavTab
+                        key={sec.id}
+                        id={sec.id}
+                        containerId={`tour-tab-${sec.id}`}
+                        label={sec.label} color={sec.color} help={sec.help}
+                        open={!!openSections[sec.id]}
+                        onToggle={toggleSection}
+                    />
+                ))}
+            </div>
+
+            {/* Drop-down Glassmorphic Pane */}
+            {activeSection && (
+                <div className="drawer-pane" style={{
+                    background: 'rgba(10, 15, 20, 0.75)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    border: `1px solid ${activeSection.color}`,
+                    // Dynamic borders depending on drop direction
+                    borderTop: dropsDown ? 'none' : `1px solid ${activeSection.color}`,
+                    borderBottom: dropsDown ? `1px solid ${activeSection.color}` : 'none',
+                    borderBottomLeftRadius: dropsDown ? '6px' : '0px',
+                    borderBottomRightRadius: dropsDown ? '6px' : '0px',
+                    borderTopLeftRadius: !dropsDown ? '6px' : '0px',
+                    borderTopRightRadius: !dropsDown ? '6px' : '0px',
+                    padding: '16px',
+                    color: '#FFF',
+                    pointerEvents: 'auto',
+                    boxShadow: dropsDown ? '0 8px 32px rgba(0,0,0,0.5)' : '0 -8px 32px rgba(0,0,0,0.5)',
+                    overflowY: 'auto',
+                    maxHeight: 'calc(100vh - 120px)',
+                    position: 'relative',
+                    transition: 'all 150ms ease',
+                    transformOrigin: dropsDown ? 'top center' : 'bottom center'
+                }}>
+                    {/* Static Watermark Background */}
+                    <img
+                        src="/DexEarthLogo.png"
+                        alt=""
+                        style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            width: '300px',
+                            height: 'auto',
+                            transform: 'translate(-50%, -50%)',
+                            opacity: 0.3,
+                            pointerEvents: 'none',
+                            zIndex: 0,
+                            mixBlendMode: 'screen',
+                        }}
+                    />
+
+                    {/* Pane Content Container */}
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                        {SECTIONS.map(sec => {
+                            if (!openSections[sec.id]) return null;
+                            return (
+                                <div key={sec.id}>
+                                    <div style={{ marginBottom: '12px', paddingBottom: '8px', borderBottom: `1px solid ${sec.color}44`, display: 'flex', justifyContent: 'space-between' }}>
+                                        <h2 style={{ margin: 0, fontSize: '14px', fontFamily: 'monospace', color: sec.color, letterSpacing: '0.1em' }}>
+                                            {sec.label.toUpperCase()}
+                                        </h2>
+                                        {/* Inject clock into Data and Time panels for visibility */}
+                                        {(sec.id === 'data' || sec.id === 'time') && utc && (
+                                            <span style={{ fontSize: '11px', color: '#888', fontFamily: 'monospace' }}>{utc}</span>
+                                        )}
+                                    </div>
+                                    {sec.id === 'data' && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                            {LAYER_DEFS.map(renderLayerRow)}
+                                        </div>
+                                    )}
+                                    {sec.id === 'time' && <TimeControllerPanel viewer={viewer} />}
+                                    {sec.id === 'satellites' && <SatellitesPanel viewer={viewer} />}
+                                    {sec.id === 'seismic' && <SeismicSimPanel viewer={viewer} />}
+                                    {sec.id === 'views' && <SavedViewsPanel viewer={viewer} toggles={toggles} />}
+                                    {sec.id === 'threat' && <ThreatIndexPanel viewer={viewer} />}
+                                    {sec.id === 'perf' && <PerformancePanel viewer={viewer} />}
+                                    {sec.id === 'datasets' && <DatasetManagerPanel />}
+                                    {sec.id === 'audit' && <AuditLogPanel />}
+                                    {sec.id === 'help' && <HelpPanel />}
+                                    {sec.id === 'visuals' && <VisualsRoot viewer={viewer} />}
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* Visuals Root acts as global injection handler */}
             <div style={{ display: 'none' }}>
                 <VisualsRoot viewer={viewer} />
             </div>
 
             <WarpHome viewer={viewer} />
-        </>
+        </div>
     )
 }

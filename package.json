@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/verify_env.sh; vite",
+    "dev": "bash scripts/verify_env.sh; vite",
     "build": "vite build",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -15,6 +15,7 @@
     "ci": "npm run lint && npm run format:check && npm run test:run && npm run build"
   },
   "dependencies": {
+    "@use-gesture/react": "^10.3.1",
     "cesium": "^1.138.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
