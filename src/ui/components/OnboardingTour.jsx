@@ -13,13 +13,58 @@ const TOUR_STEPS = [
     },
     {
         targetId: 'tour-tab-satellites',
-        title: 'SATELLITE NETWORKS',
+        title: 'SATELLITES',
         content: 'Observe active low-earth orbit constellations propagating in real-time.'
+    },
+    {
+        targetId: 'tour-tab-seismic',
+        title: 'SEISMIC',
+        content: 'Track recent global seismic events and tectonic boundaries.'
+    },
+    {
+        targetId: 'tour-tab-views',
+        title: 'VIEWS',
+        content: 'Save and manage scenario snapshots. Export offline views for later tactical reconstruction.'
+    },
+    {
+        targetId: 'tour-tab-datasets',
+        title: 'DATASETS',
+        content: 'Audit the staleness of data layers and manually override or cache them locally.'
+    },
+    {
+        targetId: 'tour-tab-threat',
+        title: 'THREAT INDEX',
+        content: 'Algorithmic threat analysis overlay. Evaluates current geography against threat heuristics.'
+    },
+    {
+        targetId: 'tour-tab-perf',
+        title: 'PERFORMANCE',
+        content: 'View system budgets and FPS. Automatically triggers Safe Mode if framerate drops.'
+    },
+    {
+        targetId: 'tour-tab-audit',
+        title: 'AUDIT LOG',
+        content: 'Rolling system audit log tracking layer toggles, errors, UI actions, and performance events.'
+    },
+    {
+        targetId: 'tour-tab-help',
+        title: 'HELP',
+        content: 'Access the complete offline Operator Manual and keyboard shortcuts.'
     },
     {
         targetId: 'tour-tab-visuals',
         title: 'RENDER STYLES',
         content: 'Swap between realistic visualization, thermal imaging, and tactical wireframe modes instantly.'
+    },
+    {
+        targetId: 'tour-drag-handle',
+        title: 'CUSTOMIZE HUD',
+        content: 'The entire navigation bar is free-floating. Click and drag this handle to move the menu anywhere on your screen. The dropdown panels will automatically orient upwards or downwards depending on where you place it.'
+    },
+    {
+        targetId: 'tour-target-warp-home', // We will inject this ID into WarpHome or PhaseIIRoot
+        title: 'WARP HOME',
+        content: 'Clicking this persistent button will instantly cancel your active tool, close open panes, and fly the camera back to base.'
     }
 ]
 
@@ -56,6 +101,17 @@ export default function OnboardingTour() {
 
         const step = TOUR_STEPS[stepIndex]
         if (!step) return
+
+        // Auto-open the tab if it's a phase II tab
+        if (step.targetId.startsWith('tour-tab-')) {
+            const sectionId = step.targetId.replace('tour-tab-', '')
+            if (window.__dexearth_toggle_section && window.__dexearth_open_sections) {
+                // Only toggle it if it isn't already open!
+                if (!window.__dexearth_open_sections[sectionId]) {
+                    window.__dexearth_toggle_section(sectionId)
+                }
+            }
+        }
 
         const el = document.getElementById(step.targetId)
         if (el) {

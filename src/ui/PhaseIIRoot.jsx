@@ -116,7 +116,7 @@ export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus
         })
     }, {
         from: () => [pos.x, pos.y],
-        bounds: { left: 16, top: 16, right: window.innerWidth - 616, bottom: window.innerHeight - 60 }
+        bounds: { left: 16, top: 16, right: window.innerWidth - 650, bottom: window.innerHeight - 60 }
     })
 
     // Determine if drawer drops UP or DOWN based on Y position (if in top half, drop down)
@@ -151,6 +151,16 @@ export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus
             await runDemoMode(viewer)
         }
     }
+
+    // Expose toggleSection globally so the onboarding tour can trigger it
+    useEffect(() => {
+        window.__dexearth_toggle_section = toggleSection;
+        window.__dexearth_open_sections = openSections;
+        return () => {
+            delete window.__dexearth_toggle_section;
+            delete window.__dexearth_open_sections;
+        }
+    }, [openSections])
 
     if (!viewer) return null
 
@@ -207,10 +217,11 @@ export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus
             display: 'flex',
             flexDirection: dropsDown ? 'column' : 'column-reverse',
             pointerEvents: 'none', // Let clicks pass through the container wrapper
-            width: '600px', // Fixed width for the free-floating nav
+            width: '650px', // Wider fixed width for the nav
         }}>
             {/* Drag Handle & Phase II header */}
             <div
+                id="tour-drag-handle"
                 {...bindDrag()}
                 style={{
                     fontFamily: 'monospace', fontSize: '9px', color: '#00FF9F88', letterSpacing: '0.15em',
@@ -248,6 +259,8 @@ export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus
                 display: 'flex',
                 gap: '2px',
                 pointerEvents: 'auto',
+                flexWrap: 'wrap', // Allow tabs to wrap if screen is small or many tabs
+                justifyContent: 'center'
             }}>
                 {SECTIONS.map(sec => (
                     <TopNavTab
@@ -345,7 +358,9 @@ export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus
                 <VisualsRoot viewer={viewer} />
             </div>
 
-            <WarpHome viewer={viewer} />
+            <div id="tour-target-warp-home">
+                <WarpHome viewer={viewer} />
+            </div>
         </div>
     )
 }
