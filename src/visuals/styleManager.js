@@ -1,7 +1,10 @@
 // ─── Style Manager ────────────────────────────────────────────────────────────
 // Single source of truth for global render styles.
 // Applies and removes Cesium PostProcessStages, globe settings, overlay styles.
+// Applies and removes Cesium PostProcessStages, globe settings, overlay styles.
 
+import * as Cesium from 'cesium'
+import { emitAudit } from '../utils/auditLog.js'
 import { applyOverlayStyle, rebuildAllOverlays } from '../overlays/countries/index.js'
 import { realisticPreset } from './presets/realistic.js'
 import { celShadedPreset } from './presets/celShaded.js'
@@ -35,6 +38,8 @@ export const styleManagerState = {
     safeModeActive: false,
     fps: 0,
     postFxEnabled: true,
+    starfieldIntensity: 1.0,
+    cloudMode: 'OFF', // 'OFF', 'SIMULATED', 'REALISTIC'
 }
 
 // ── Internal ──────────────────────────────────────────────────────────────────
@@ -107,6 +112,8 @@ function _activateSafeMode() {
     // Update any preset that reacts to safe mode
     const preset = PRESETS[_currentPresetId]
     if (preset?.onSafeModeEnter) preset.onSafeModeEnter(_viewer)
+
+    emitAudit('perf', 'SAFE_MODE_TRIGGERED', 'FPS dropped below 25. Post-fx disabled.')
     _notify()
 }
 
@@ -115,6 +122,9 @@ export function deactivateSafeMode() {
     styleManagerState.safeModeActive = false
     styleManagerState.postFxEnabled = true
     _fpsSamples = []
+
+    emitAudit('perf', 'SAFE_MODE_DISABLED', 'User manually forced safe mode off.')
+
     // Re-apply current preset
     applyPreset(_currentPresetId)
 }
@@ -163,6 +173,8 @@ export function applyPreset(presetId, params = {}) {
     applyOverlayStyle(preset.borderStyle || {}, preset.labelStyle || {})
     rebuildAllOverlays()
 
+    emitAudit('ui', 'STYLE_APPLIED', `Render style changed to ${presetId}`)
+
     _notify()
 }
 
@@ -180,6 +192,63 @@ export function getPresetParams() {
         ...PRESETS[_currentPresetId]?.defaults,
         ..._presetParams[_currentPresetId],
     }
+}
+
+export function setStarfieldIntensity(intensity) {
+    if (!_viewer) return
+    styleManagerState.starfieldIntensity = intensity
+    if (_viewer.scene.skyAtmosphere) {
+        // A simple heuristic for increasing brightness is multiplying light intensity
+        // or increasing the exposure/brightness of the skyBox. We use skyAtmosphere here.
+        _viewer.scene.skyAtmosphere.brightnessShift = (intensity - 1.0) * 0.5
+    }
+    _notify()
+}
+
+export function setCloudMode(mode) {
+    if (!_viewer) return
+    styleManagerState.cloudMode = mode
+
+    // Disable any existing cloud primitive
+    if (_viewer.scene.primitives._primitives.length) {
+        _viewer.scene.primitives._primitives.forEach(p => {
+            if (p.isCloudPrimitive) {
+                p.show = false
+            }
+        })
+    }
+
+    if (mode === 'SIMULATED' || mode === 'REALISTIC') {
+        let cloudPrimitive = _viewer.scene.primitives._primitives.find(p => p.isCloudPrimitive)
+
+        if (!cloudPrimitive) {
+            cloudPrimitive = new Cesium.CloudCollection()
+            cloudPrimitive.isCloudPrimitive = true
+            _viewer.scene.primitives.add(cloudPrimitive)
+
+            // Seed base clouds
+            for (let i = 0; i < 50; i++) {
+                const lon = (Math.random() * 360) - 180
+                const lat = (Math.random() * 140) - 70
+                cloudPrimitive.add({
+                    position: Cesium.Cartesian3.fromDegrees(lon, lat, 6000 + Math.random() * 4000),
+                    scale: new Cesium.Cartesian2(
+                        50000 + (Math.random() * 150000),
+                        20000 + (Math.random() * 80000)
+                    ),
+                    maximumSize: new Cesium.Cartesian3(50, 50, 50),
+                    slice: Math.random()
+                })
+            }
+        }
+
+        cloudPrimitive.show = true
+        cloudPrimitive.noiseDetail = mode === 'REALISTIC' ? 16.0 : 4.0
+        cloudPrimitive.noiseOffset = new Cesium.Cartesian3(Math.random(), Math.random(), Math.random())
+    }
+
+    emitAudit('ui', 'VISUALS_UPDATED', `Cloud mode set to ${mode}`)
+    _notify()
 }
 
 export function getCurrentPresetId() { return _currentPresetId }

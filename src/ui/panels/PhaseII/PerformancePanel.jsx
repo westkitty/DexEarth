@@ -1,53 +1,83 @@
 import { useState, useEffect } from 'react'
-import { performanceHud } from '../../../layers/performance/hud.js'
-
-const S = {
-    panel: { fontFamily: 'monospace', fontSize: '11px', color: '#FFFF00', padding: '8px 0', borderTop: '1px solid #FFFF0022', marginTop: '6px' },
-    label: { color: '#FFFFAA', fontSize: '10px', marginBottom: '2px' },
-    row: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' },
-    btn: { background: '#0d1520', border: '1px solid #FFFF0055', color: '#FFFF00', fontFamily: 'monospace', fontSize: '10px', cursor: 'pointer', padding: '2px 7px', borderRadius: '2px' },
-}
+import { Panel, CollapsibleSection, Button, StatusBadge, UI_TOKENS } from '../components/core.jsx'
+import { subscribePerf } from '../../../diagnostics/perfMonitor.js'
+import { deactivateSafeMode } from '../../../visuals/styleManager.js'
 
 function fpsColor(fps) {
-    if (fps >= 40) return '#00FF9F'
-    if (fps >= 20) return '#FFD700'
-    return '#FF4444'
+    if (fps >= 45) return 'success'
+    if (fps >= 25) return 'warning'
+    return 'error'
 }
 
-export default function PerformancePanel({ viewer }) {
-    const [stats, setStats] = useState({ fps: 0, totalPrimitives: 0, safeModeActive: false })
+export default function PerformancePanel() {
+    const [perf, setPerf] = useState({
+        fps: 60, safeMode: false, topOffender: 'none',
+        budgets: {
+            points: { current: 0, max: 0 },
+            lines: { current: 0, max: 0 },
+            labels: { current: 0, max: 0 },
+            polygons: { current: 0, max: 0 }
+        }
+    })
 
     useEffect(() => {
-        if (!viewer) return
-        performanceHud.init(viewer)
-        performanceHud.onUpdate(setStats)
-        return () => performanceHud.stop()
-    }, [viewer])
+        return subscribePerf(setPerf)
+    }, [])
 
-    const { fps, totalPrimitives, safeModeActive } = stats
+    const { fps, safeMode, budgets, topOffender } = perf
 
     return (
-        <div style={S.panel}>
-            <div style={{ ...S.label, fontWeight: 'bold', marginBottom: '6px' }}>📊 PERFORMANCE</div>
+        <Panel>
+            <CollapsibleSection title="📊 Performance" defaultOpen={false}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '20px', fontWeight: 'bold', color: UI_TOKENS.textPrimary }}>
+                            {fps} <span style={{ fontSize: '10px', color: UI_TOKENS.textSecondary }}>FPS</span>
+                        </span>
+                        <StatusBadge status={fpsColor(fps)} text={fps >= 45 ? 'SMOOTH' : (fps >= 25 ? 'LAGGY' : 'CRITICAL')} />
+                    </div>
+                </div>
 
-            <div style={S.row}>
-                <span style={{ color: fpsColor(fps), fontSize: '14px', fontWeight: 'bold' }}>{fps} FPS</span>
-                <span style={{ color: '#FFFFAA', fontSize: '10px' }}>Primitives: {totalPrimitives}</span>
-            </div>
+                <div style={{ marginBottom: '8px', padding: '6px', background: 'rgba(0,0,0,0.2)', border: UI_TOKENS.glassBorder, borderRadius: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '10px', color: UI_TOKENS.textSecondary }}>SAFE MODE POLICY</span>
+                        <StatusBadge status={safeMode ? 'warning' : 'neutral'} text={safeMode ? 'ACTIVE' : 'STANDBY'} />
+                    </div>
+                    {safeMode && (
+                        <div style={{ marginTop: '6px' }}>
+                            <Button variant="warning" onClick={deactivateSafeMode} style={{ width: '100%' }}>
+                                OVERRIDE SAFE MODE
+                            </Button>
+                        </div>
+                    )}
+                </div>
 
-            <div style={S.row}>
-                <span style={{ color: safeModeActive ? '#FF4444' : '#00FF9F', fontWeight: 'bold', fontSize: '10px' }}>
-                    Safe Mode: {safeModeActive ? '⚠ ACTIVE' : '✓ OFF'}
-                </span>
-                {safeModeActive
-                    ? <button style={{ ...S.btn, color: '#00FF9F' }} onClick={() => performanceHud.deactivateSafeMode()}>Disable</button>
-                    : <button style={{ ...S.btn, color: '#FFD700' }} onClick={() => performanceHud.activateSafeMode()}>Force On</button>
-                }
-            </div>
+                <div style={{ fontSize: '10px', color: UI_TOKENS.textSecondary, marginBottom: '4px', textTransform: 'uppercase' }}>
+                    Geometry Budgets
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+                    {Object.entries(budgets).map(([key, b]) => {
+                        const pct = Math.min(100, Math.round((b.current / b.max) * 100)) || 0
+                        const isOver = b.current > b.max
+                        return (
+                            <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontFamily: UI_TOKENS.font }}>
+                                <span style={{ color: isOver ? UI_TOKENS.textAlert : UI_TOKENS.textPrimary }}>
+                                    {key}
+                                </span>
+                                <span style={{ color: isOver ? UI_TOKENS.textAlert : UI_TOKENS.textMuted }}>
+                                    {b.current.toLocaleString()} / {b.max.toLocaleString()} ({pct}%)
+                                </span>
+                            </div>
+                        )
+                    })}
+                </div>
 
-            {fps < 20 && fps > 0 && !safeModeActive && (
-                <div style={{ color: '#FF4444', fontSize: '10px' }}>Low FPS detected — Safe Mode will auto-trigger</div>
-            )}
-        </div>
+                {topOffender !== 'none' && (
+                    <div style={{ fontSize: '9px', color: UI_TOKENS.textWarn, textAlign: 'right', marginTop: '4px' }}>
+                        Heaviest Layer: {topOffender}
+                    </div>
+                )}
+            </CollapsibleSection>
+        </Panel>
     )
 }

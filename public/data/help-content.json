@@ -1,0 +1,34 @@
+{
+    "sections": [
+        {
+            "id": "quickstart",
+            "title": "Quick Start",
+            "content": "DexEarth is a high-performance tactical globe for synthesizing spatial data. Use the HUD on the right to toggle layers on and off. Left-click and drag the globe to pan, right-click and drag to zoom, and middle-click and drag to tilt. Use the 'Warp Home' button in the bottom left to instantly return to base."
+        },
+        {
+            "id": "layers",
+            "title": "Layer Definitions",
+            "content": "**Air Radar**:\nReal-time flight tracking from the airplanes.live network. Points are plotted at altitude.\n\n**Satellites**:\nLow Earth Orbit (LEO) orbital propagation calculated locally via SGP4. The underlying TLE (Two-Line Element) catalog is cached offline.\n\n**Seismic Sim**:\nGlobal earthquake feed from the USGS. Event size and opacity are scaled to magnitude and time recency.\n\n**Thermal / Fires**:\nNASA FIRMS thermal anomaly data, primarily used for wildfire tracking. Shows spots detected by VIIRS and MODIS sensors over the past 24 hours."
+        },
+        {
+            "id": "overlays",
+            "title": "Overlays & Analytics",
+            "content": "You can toggle vector overlays like **Country Borders** and **Tectonic Plates**. These features render using optimized Cesium geometry. Labels are dynamically spawned and scaled based on your camera altitude.\n\nAnalytic layers like **Threat Index** and **Correlation Engine** synthesize data from multiple active layers to render heatmaps and relational lines."
+        },
+        {
+            "id": "perf",
+            "title": "Performance Governance",
+            "content": "DexEarth monitors playback framerate (FPS) in real-time. If framerate drops below 25 FPS for a sustained duration, the system engages **Safe Mode**. Safe Mode will shed visual complexity (e.g. disabling heavy labels, limiting geometry) to maintain stability. You can monitor system budgets in the 'Perf' section."
+        },
+        {
+            "id": "scenarios",
+            "title": "Scenarios & Saved Views",
+            "content": "You can save the precise camera angle and layer configuration into 9 fast-access slots. Use **Alt+1..9** to load a view, and **Shift+Alt+1..9** to save your current view to a slot. You can also export a complete system offline snapshot as a JSON file in the 'Views' section."
+        },
+        {
+            "id": "shortcuts",
+            "title": "Keyboard Shortcuts",
+            "content": "**Esc**: Cancel active tool / close popovers\n**Alt+1..9**: Load saved view\n**Shift+Alt+1..9**: Save current view\n**Space**: Toggle time pause (if time controller active)"
+        }
+    ]
+}

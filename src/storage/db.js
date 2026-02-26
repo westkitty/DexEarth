@@ -2,13 +2,16 @@
 // Thin promise-based wrapper. Versioned schema with structured stores.
 
 const DB_NAME = 'dexearth'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 const STORES = {
     cache: 'cache',       // key-value for TLE cache etc.
     markers: 'markers',
     geofences: 'geofences',
     alertLog: 'alertLog',
+    audit: 'audit',       // System audit log
+    savedViews: 'savedViews', // Saved camera/layer states
+    scenarios: 'scenarios',   // Saved operational snapshots
 }
 
 let _db = null
@@ -30,6 +33,15 @@ function _open() {
             }
             if (!db.objectStoreNames.contains(STORES.alertLog)) {
                 db.createObjectStore(STORES.alertLog, { keyPath: 'id', autoIncrement: true })
+            }
+            if (!db.objectStoreNames.contains(STORES.audit)) {
+                db.createObjectStore(STORES.audit, { keyPath: 'id', autoIncrement: true })
+            }
+            if (!db.objectStoreNames.contains(STORES.savedViews)) {
+                db.createObjectStore(STORES.savedViews, { keyPath: 'id' })
+            }
+            if (!db.objectStoreNames.contains(STORES.scenarios)) {
+                db.createObjectStore(STORES.scenarios, { keyPath: 'id' })
             }
         }
         req.onsuccess = e => { _db = e.target.result; resolve(_db) }
@@ -62,6 +74,11 @@ export async function cacheGet(key) {
 export async function cacheSet(key, value) {
     const store = await _tx(STORES.cache, 'readwrite')
     return _promisify(store.put({ key, value }))
+}
+
+export async function cacheDelete(key) {
+    const store = await _tx(STORES.cache, 'readwrite')
+    return _promisify(store.delete(key))
 }
 
 export async function cacheDel(key) {
@@ -126,3 +143,38 @@ export async function alertLogClear() {
     const store = await _tx(STORES.alertLog, 'readwrite')
     return _promisify(store.clear())
 }
+
+// ── audit store ───────────────────────────────────────────────────────────────
+
+export async function auditGetAll() {
+    const store = await _tx(STORES.audit)
+    return _promisify(store.getAll())
+}
+
+export async function auditAdd(entry) {
+    const store = await _tx(STORES.audit, 'readwrite')
+    return _promisify(store.add(entry))
+}
+
+export async function auditClear() {
+    const store = await _tx(STORES.audit, 'readwrite')
+    return _promisify(store.clear())
+}
+
+// ── savedViews store ─────────────────────────────────────────────────────────
+
+export async function viewSave(view) {
+    const store = await _tx(STORES.savedViews, 'readwrite')
+    return _promisify(store.put(view))
+}
+
+export async function viewsGetAll() {
+    const store = await _tx(STORES.savedViews)
+    return _promisify(store.getAll())
+}
+
+export async function viewDelete(id) {
+    const store = await _tx(STORES.savedViews, 'readwrite')
+    return _promisify(store.delete(id))
+}
+

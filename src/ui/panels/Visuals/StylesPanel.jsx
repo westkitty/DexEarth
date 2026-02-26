@@ -2,8 +2,9 @@
 import { useEffect, useState } from 'react'
 import {
     PRESETS, applyPreset, updatePresetParam, getPresetParams, getCurrentPresetId,
-    onStateChange, deactivateSafeMode,
+    onStateChange, deactivateSafeMode, setStarfieldIntensity, setCloudMode
 } from '../../../visuals/styleManager.js'
+import { viewStore, setFlyMode, subscribeViewStore } from '../../../state/viewStore.js'
 
 const PRESET_META = [
     { id: 'REALISTIC', label: '🌍 Realistic', color: '#4488FF' },
@@ -61,6 +62,9 @@ export default function StylesPanel({ viewer }) {
     const [fps, setFps] = useState(0)
     const [safeMode, setSafeMode] = useState(false)
     const [postFx, setPostFx] = useState(false)
+    const [starfieldIntensity, setStarfieldIntensityState] = useState(1.0)
+    const [cloudMode, setCloudModeState] = useState('OFF')
+    const [flyMode, setFlyModeState] = useState(viewStore.flyMode)
 
     useEffect(() => {
         const unsub = onStateChange(state => {
@@ -68,9 +72,14 @@ export default function StylesPanel({ viewer }) {
             setFps(state.fps)
             setSafeMode(state.safeModeActive)
             setPostFx(state.postFxEnabled)
+            setStarfieldIntensityState(state.starfieldIntensity)
+            setCloudModeState(state.cloudMode)
             setParams(getPresetParams())
         })
-        return unsub
+        const unsubView = subscribeViewStore((state) => {
+            setFlyModeState(state.flyMode)
+        })
+        return () => { unsub(); unsubView() }
     }, [])
 
     const handlePreset = (id) => {
@@ -127,6 +136,74 @@ export default function StylesPanel({ viewer }) {
                     ))}
                 </div>
             )}
+
+            {/* Global Visuals */}
+            <div style={{ marginTop: '8px', padding: '6px 4px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
+                <div style={{ marginBottom: '8px' }}>
+                    <span style={{ ...S.label, color: '#AAFFCCaa', display: 'block', marginBottom: '4px' }}>
+                        Starfield Intensity: {starfieldIntensity.toFixed(1)}x
+                    </span>
+                    <input
+                        type="range" min="0.5" max="5.0" step="0.1"
+                        value={starfieldIntensity}
+                        onChange={e => {
+                            const val = parseFloat(e.target.value)
+                            setStarfieldIntensityState(val)
+                            setStarfieldIntensity(val)
+                        }}
+                        style={S.slider}
+                    />
+                </div>
+                <div>
+                    <span style={{ ...S.label, color: '#AAFFCCaa', display: 'block', marginBottom: '4px' }}>
+                        Cloud Simulation:
+                    </span>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                        {['OFF', 'SIMULATED', 'REALISTIC'].map(mode => (
+                            <button
+                                key={mode}
+                                style={{
+                                    flex: 1, padding: '4px 0', fontSize: '9px', fontFamily: 'monospace',
+                                    cursor: 'pointer', borderRadius: '2px', border: '1px solid',
+                                    background: cloudMode === mode ? 'rgba(170, 255, 204, 0.2)' : 'transparent',
+                                    borderColor: cloudMode === mode ? '#AAFFCC' : '#AAFFCC44',
+                                    color: cloudMode === mode ? '#AAFFCC' : '#AAFFCC88'
+                                }}
+                                onClick={() => {
+                                    setCloudModeState(mode)
+                                    setCloudMode(mode)
+                                }}
+                            >
+                                {mode}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div style={{ marginTop: '8px' }}>
+                    <span style={{ ...S.label, color: '#AAFFCCaa', display: 'block', marginBottom: '4px' }}>
+                        Camera Fly Mode:
+                    </span>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                        {['normal', 'fast', 'cinematic'].map(mode => (
+                            <button
+                                key={mode}
+                                style={{
+                                    flex: 1, padding: '4px 0', fontSize: '9px', fontFamily: 'monospace',
+                                    cursor: 'pointer', borderRadius: '2px', border: '1px solid',
+                                    background: flyMode === mode ? 'rgba(170, 255, 204, 0.2)' : 'transparent',
+                                    borderColor: flyMode === mode ? '#AAFFCC' : '#AAFFCC44',
+                                    color: flyMode === mode ? '#AAFFCC' : '#AAFFCC88',
+                                    textTransform: 'uppercase'
+                                }}
+                                onClick={() => setFlyMode(mode)}
+                            >
+                                {mode}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
 
             {/* Reset to defaults */}
             <button

@@ -3,7 +3,11 @@ import * as Cesium from 'cesium'
 import * as satellite from 'satellite.js'
 import './App.css'
 import { parseTLEs, fetchWithRetry } from './utils.js'
+import { emitAudit } from './utils/auditLog.js'
 import { LAYER_DEFS, SHIPPING_ROUTES } from './config.js'
+import * as tickCoordinator from './diagnostics/tickCoordinator.js'
+import { initPerfMonitor, stopPerfMonitor } from './diagnostics/perfMonitor.js'
+import { viewStore, saveView } from './state/viewStore.js'
 import PhaseIIRoot from './ui/PhaseIIRoot.jsx'
 
 // ─── USER CONFIG ──────────────────────────────────────────────────────────────
@@ -90,7 +94,14 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
           }
         }
         await refresh()
-        ld.AIR_RADAR.interval = setInterval(refresh, 30_000)
+        tickCoordinator.registerSlow('AIR_RADAR', async () => {
+          if (!ld.AIR_RADAR._tick) ld.AIR_RADAR._tick = 0
+          ld.AIR_RADAR._tick++
+          if (ld.AIR_RADAR._tick >= 30) {
+            ld.AIR_RADAR._tick = 0
+            await refresh()
+          }
+        })
         break
       }
 
@@ -188,7 +199,14 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
         }
 
         propagate()
-        ld.ORBITAL_MATH.interval = setInterval(propagate, 5_000)
+        tickCoordinator.registerSlow('ORBITAL_MATH', () => {
+          if (!ld.ORBITAL_MATH._tick) ld.ORBITAL_MATH._tick = 0
+          ld.ORBITAL_MATH._tick++
+          if (ld.ORBITAL_MATH._tick >= 5) {
+            ld.ORBITAL_MATH._tick = 0
+            propagate()
+          }
+        })
         break
       }
 
@@ -201,7 +219,7 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
         ld.SEISMIC_GRID.shadows = shadows
         ld.SEISMIC_GRID.primitives = primitives
 
-        const refresh = async () => {
+        const refreshFireAndRings = async () => {
           try {
             const res = await fetchWithRetry(
               'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson'
@@ -245,8 +263,15 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
             setLayerStatus(s => ({ ...s, SEISMIC_GRID: 'error' }))
           }
         }
-        await refresh()
-        ld.SEISMIC_GRID.interval = setInterval(refresh, 60_000)
+        refreshFireAndRings()
+        tickCoordinator.registerSlow('SEISMIC_GRID', () => {
+          if (!ld.SEISMIC_GRID._tick) ld.SEISMIC_GRID._tick = 0
+          ld.SEISMIC_GRID._tick++
+          if (ld.SEISMIC_GRID._tick >= 60) {
+            ld.SEISMIC_GRID._tick = 0
+            refreshFireAndRings()
+          }
+        })
         break
       }
 
@@ -292,7 +317,14 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
           }
         }
         await refresh()
-        ld.THERMAL_FIRES.interval = setInterval(refresh, 300_000)
+        tickCoordinator.registerSlow('THERMAL_FIRES', () => {
+          if (!ld.THERMAL_FIRES._tick) ld.THERMAL_FIRES._tick = 0
+          ld.THERMAL_FIRES._tick++
+          if (ld.THERMAL_FIRES._tick >= 120) {
+            ld.THERMAL_FIRES._tick = 0
+            refresh()
+          }
+        })
         break
       }
 
@@ -588,11 +620,16 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
         ld.SOLAR_SYNC.enabled = true
 
         // Keep clock synced to real time
-        ld.SOLAR_SYNC.interval = setInterval(() => {
-          if (ld.SOLAR_SYNC.enabled) {
-            viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date())
+        tickCoordinator.registerSlow('SOLAR_SYNC', () => {
+          if (!ld.SOLAR_SYNC._tick) ld.SOLAR_SYNC._tick = 0
+          ld.SOLAR_SYNC._tick++
+          if (ld.SOLAR_SYNC._tick >= 10) {
+            ld.SOLAR_SYNC._tick = 0
+            if (ld.SOLAR_SYNC.enabled) {
+              viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date())
+            }
           }
-        }, 10_000)
+        })
 
         const now = new Date()
         const utcStr = now.toUTCString().split(' ').slice(0, 5).join(' ')
@@ -626,8 +663,7 @@ function deactivateLayer(viewer, layerDataRef, layerId, setTelemetry, setLayerSt
 
   switch (layerId) {
     case 'AIR_RADAR': {
-      clearInterval(ld.AIR_RADAR.interval)
-      ld.AIR_RADAR.interval = null
+      tickCoordinator.unregister('AIR_RADAR')
       if (ld.AIR_RADAR.points) {
         viewer.scene.primitives.remove(ld.AIR_RADAR.points)
         ld.AIR_RADAR.points = null
@@ -635,8 +671,7 @@ function deactivateLayer(viewer, layerDataRef, layerId, setTelemetry, setLayerSt
       break
     }
     case 'ORBITAL_MATH': {
-      clearInterval(ld.ORBITAL_MATH.interval)
-      ld.ORBITAL_MATH.interval = null
+      tickCoordinator.unregister('ORBITAL_MATH')
       if (ld.ORBITAL_MATH.points) {
         viewer.scene.primitives.remove(ld.ORBITAL_MATH.points)
         ld.ORBITAL_MATH.points = null
@@ -650,8 +685,7 @@ function deactivateLayer(viewer, layerDataRef, layerId, setTelemetry, setLayerSt
       break
     }
     case 'SEISMIC_GRID': {
-      clearInterval(ld.SEISMIC_GRID.interval)
-      ld.SEISMIC_GRID.interval = null
+      tickCoordinator.unregister('SEISMIC_GRID')
       if (ld.SEISMIC_GRID.shadows) {
         viewer.scene.primitives.remove(ld.SEISMIC_GRID.shadows)
         ld.SEISMIC_GRID.shadows = null
@@ -663,8 +697,7 @@ function deactivateLayer(viewer, layerDataRef, layerId, setTelemetry, setLayerSt
       break
     }
     case 'THERMAL_FIRES': {
-      clearInterval(ld.THERMAL_FIRES.interval)
-      ld.THERMAL_FIRES.interval = null
+      tickCoordinator.unregister('THERMAL_FIRES')
       if (ld.THERMAL_FIRES.points) {
         viewer.scene.primitives.remove(ld.THERMAL_FIRES.points)
         ld.THERMAL_FIRES.points = null
@@ -712,8 +745,7 @@ function deactivateLayer(viewer, layerDataRef, layerId, setTelemetry, setLayerSt
       break
     }
     case 'SOLAR_SYNC': {
-      clearInterval(ld.SOLAR_SYNC.interval)
-      ld.SOLAR_SYNC.interval = null
+      tickCoordinator.unregister('SOLAR_SYNC')
       ld.SOLAR_SYNC.enabled = false
       viewer.scene.globe.enableLighting = false
       break
@@ -820,8 +852,13 @@ export default function App() {
 
   const utc = useUtcClock()
 
+  const telemetryStateRef = useRef(telemetry)
+
   // ── Singleton Cesium init ─────────────────────────────────────────────────
   useEffect(() => {
+    tickCoordinator.start()
+    initPerfMonitor(telemetryStateRef)
+
     if (viewerRef.current) return
     if (!cesiumContainerRef.current) return
 
@@ -930,7 +967,131 @@ export default function App() {
       // Capture ref value for cleanup
       const layerData = layerDataRef.current
 
+      // ── Saved Views Keyboard Shortcuts
+      const handleKeyDown = (e) => {
+        // Must hold Alt to trigger saved views
+        if (!e.altKey) return
+
+        const match = e.code.match(/^Digit([1-9])$/)
+        if (!match) return
+
+        const slot = match[1]
+        const v = viewerRef.current
+        if (!v || v.isDestroyed()) return
+
+        if (e.shiftKey) {
+          // SAVE mode
+          e.preventDefault()
+          const cam = {
+            position: v.camera.positionCartographic.clone(),
+            heading: v.camera.heading,
+            pitch: v.camera.pitch,
+            roll: v.camera.roll
+          }
+
+          setToggles(currentToggles => {
+            const activeLayers = Object.entries(currentToggles)
+              .filter(([, isActive]) => isActive)
+              .map(([id]) => id)
+
+            saveView(slot, `View ${slot}`, cam, activeLayers).then(() => {
+              emitAudit('ui', 'VIEW_SAVED', `Saved view to slot ${slot}`)
+            })
+
+            return currentToggles
+          })
+        } else {
+          // LOAD mode
+          e.preventDefault()
+          const saved = viewStore.savedViews[slot]
+          if (!saved) return
+
+          if (saved.camera && saved.camera.position) {
+            const pos = saved.camera.position
+            v.camera.flyTo({
+              destination: Cesium.Cartesian3.fromRadians(pos.longitude, pos.latitude, pos.height),
+              orientation: { heading: saved.camera.heading, pitch: saved.camera.pitch, roll: saved.camera.roll },
+              duration: viewStore.flyMode === 'fast' ? 0.5 : (viewStore.flyMode === 'cinematic' ? 4 : 1.5)
+            })
+          }
+
+          if (saved.layers) {
+            setToggles(currentToggles => {
+              const newToggles = { ...currentToggles }
+              const desired = new Set(saved.layers)
+
+              Object.keys(newToggles).forEach(layerId => {
+                if (newToggles[layerId] && !desired.has(layerId)) {
+                  newToggles[layerId] = false
+                  deactivateLayer(v, layerDataRef, layerId, setTelemetry, setLayerStatus, vfxGrainRef)
+                }
+              })
+
+              desired.forEach(layerId => {
+                if (!newToggles[layerId]) {
+                  newToggles[layerId] = true
+                  activateLayer(v, layerDataRef, layerId, setTelemetry, setLayerStatus, vfxGrainRef)
+                }
+              })
+
+              return newToggles
+            })
+          }
+          emitAudit('ui', 'VIEW_LOADED', `Loaded view from slot ${slot}`)
+        }
+      }
+
+      const handleLoadScenario = (e) => {
+        const scenario = e.detail
+        if (!scenario) return
+
+        const v = viewerRef.current
+        if (!v || v.isDestroyed()) return
+
+        // 1. Restore Camera
+        if (scenario.camera && scenario.camera.position) {
+          const pos = scenario.camera.position
+          v.camera.flyTo({
+            destination: Cesium.Cartesian3.fromRadians(pos.longitude, pos.latitude, pos.height),
+            orientation: { heading: scenario.camera.heading, pitch: scenario.camera.pitch, roll: scenario.camera.roll },
+            duration: viewStore.flyMode === 'fast' ? 0.5 : (viewStore.flyMode === 'cinematic' ? 4 : 1.5)
+          })
+        }
+
+        // 2. Restore Layers
+        if (scenario.layers) {
+          setToggles(currentToggles => {
+            const newToggles = { ...currentToggles }
+            const desired = new Set(scenario.layers)
+
+            Object.keys(newToggles).forEach(layerId => {
+              if (newToggles[layerId] && !desired.has(layerId)) {
+                newToggles[layerId] = false
+                deactivateLayer(v, layerDataRef, layerId, setTelemetry, setLayerStatus, vfxGrainRef)
+              }
+            })
+
+            desired.forEach(layerId => {
+              if (!newToggles[layerId]) {
+                newToggles[layerId] = true
+                activateLayer(v, layerDataRef, layerId, setTelemetry, setLayerStatus, vfxGrainRef)
+              }
+            })
+
+            return newToggles
+          })
+        }
+        emitAudit('ui', 'SCENARIO_LOADED', `Loaded scenario: ${scenario.name || 'Unnamed'}`)
+      }
+
+      window.addEventListener('keydown', handleKeyDown)
+      window.addEventListener('dexearth:loadScenario', handleLoadScenario)
+
       return () => {
+        window.removeEventListener('keydown', handleKeyDown)
+        window.removeEventListener('dexearth:loadScenario', handleLoadScenario)
+        tickCoordinator.stop()
+        stopPerfMonitor()
         // Clean up all layer intervals
         Object.values(layerData).forEach(layer => {
           if (layer && layer.interval) clearInterval(layer.interval)
@@ -1028,7 +1189,7 @@ export default function App() {
           <div className="hud-clock">
             <span>{utc}</span>
           </div>
-          <PhaseIIRoot viewer={viewerState} />
+          <PhaseIIRoot viewer={viewerState} toggles={toggles} />
         </div>
       </aside>
     </div>

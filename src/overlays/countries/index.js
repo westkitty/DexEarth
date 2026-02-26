@@ -112,8 +112,12 @@ async function _ensureGeojson() {
 
 function _rebuildAll() {
     _rebuildBorders()
-    _rebuildLabels()
-    _rebuildFollowLabels()
+    // Labels rely on screen-space collision, so wait one frame for the borders
+    // and globe to render before asking for window coordinates.
+    requestAnimationFrame(() => {
+        _rebuildLabels()
+        _rebuildFollowLabels()
+    })
 }
 
 function _scheduleRebuild() {

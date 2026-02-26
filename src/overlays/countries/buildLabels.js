@@ -62,7 +62,14 @@ export function buildLabelCollection({ features, viewer, altM, maxLabels = 200, 
     const accepted = []
     let rendered = 0
 
-    for (const feature of features) {
+    // Sort features by size (approx ring length) descending to prioritize large countries
+    const sortedFeatures = [...features].sort((a, b) => {
+        const lenA = a.geometry?.coordinates?.[0]?.length || a.geometry?.coordinates?.[0]?.[0]?.length || 0
+        const lenB = b.geometry?.coordinates?.[0]?.length || b.geometry?.coordinates?.[0]?.[0]?.length || 0
+        return lenB - lenA
+    })
+
+    for (const feature of sortedFeatures) {
         if (rendered >= maxLabels) break
         const p = feature.properties || {}
         const name = p.NAME || p.ADMIN || ''
@@ -79,15 +86,22 @@ export function buildLabelCollection({ features, viewer, altM, maxLabels = 200, 
         // Project to screen
         const cart3 = Cesium.Cartesian3.fromDegrees(rp[0], rp[1], 500)
         const screenPt = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, cart3)
-        if (!screenPt) continue // behind globe
 
-        const w = estimateLabelWidth(name, fs)
-        const h = fs + 4
-        const rect = { x: screenPt.x - w / 2, y: screenPt.y - h / 2, w, h }
+        // If off-screen or scene not yet rendered, skip collision detection
+        // but still add the label if it fits in maxLabels.
+        if (screenPt) {
+            const w = estimateLabelWidth(name, fs)
+            const h = fs + 4
+            const rect = { x: screenPt.x - w / 2, y: screenPt.y - h / 2, w, h }
 
-        const isHighlighted = name === highlight
-        if (!isHighlighted && rectsOverlap(rect, accepted)) continue
-        accepted.push(rect)
+            const isHighlighted = name === highlight
+            if (!isHighlighted && rectsOverlap(rect, accepted)) continue
+            accepted.push(rect)
+        } else if (name !== highlight && rendered > maxLabels * 0.5) {
+            // Un-rendered penalty: when we can't do collision detection,
+            // be very conservative about adding blind labels.
+            continue
+        }
 
         const isHighlightedCountry = name === highlight
         col.add({

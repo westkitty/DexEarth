@@ -9,22 +9,27 @@ import CorrelationPanel from './panels/PhaseII/CorrelationPanel.jsx'
 import ThreatIndexPanel from './panels/PhaseII/ThreatIndexPanel.jsx'
 import CinematicPanel from './panels/PhaseII/CinematicPanel.jsx'
 import PerformancePanel from './panels/PhaseII/PerformancePanel.jsx'
+import AuditLogPanel from './panels/Phase4/AuditLogPanel.jsx'
+import DatasetManagerPanel from './panels/Phase4/DatasetManagerPanel.jsx'
+import SavedViewsPanel from './panels/Phase4/SavedViewsPanel.jsx'
+import HelpPanel from './panels/Phase4/HelpPanel.jsx'
 import VisualsRoot from './panels/Visuals/VisualsRoot.jsx'
+import WarpHome from './components/WarpHome.jsx'
+import { InfoPopover } from './components/core.jsx'
 
 const SECTIONS = [
-    { id: 'time', label: '⏱ Time', color: '#00FF9F' },
-    { id: 'satellites', label: '🛰 Satellites', color: '#00CFFF' },
-    { id: 'seismic', label: '⚡ Seismic Sim', color: '#FF8C00' },
-    { id: 'markers', label: '📍 Markers', color: '#00FF9F' },
-    { id: 'alerts', label: '⚠ Alerts', color: '#FFD700' },
-    { id: 'cascade', label: '⛓ Cascade', color: '#FF00FF' },
-    { id: 'correlation', label: '◈ Correlation', color: '#00FFFF' },
-    { id: 'threat', label: '◉ Threat', color: '#FF2200' },
-    { id: 'cinematic', label: '🎬 Cinematic', color: '#AAFFAA' },
-    { id: 'perf', label: '📊 Perf', color: '#FFFF00' },
+    { id: 'time', label: '🕰 Time & Orbit', color: '#00CFFF', help: 'Control playback speed, time sync, and evaluate orbital cascades based on Julian dates.' },
+    { id: 'satellites', label: '🛰 Satellites', color: '#00FF9F', help: 'Render real-time LEO satellites using offline SGP4 propagation from embedded TLE files.' },
+    { id: 'seismic', label: '🌋 Seismic', color: '#FF8800', help: 'Track recent global seismic events and tectonic boundaries.' },
+    { id: 'views', label: '📸 Views', color: '#AAFFAA', help: 'Save and manage scenario snapshots. Export offline views for later tactical reconstruction.' },
+    { id: 'datasets', label: '📦 Datasets', color: '#00CFFF', help: 'Audit the staleness of data layers and manually override or cache them locally.' },
+    { id: 'threat', label: '◉ Threat', color: '#FF2200', help: 'Algorithmic threat analysis overlay. Evaluates current geography against threat heuristics.' },
+    { id: 'perf', label: '📊 Perf', color: '#FFFF00', help: 'Performance Governance. View system budgets and FPS. Automatically triggers Safe Mode if framerate drops.' },
+    { id: 'audit', label: '📄 Log', color: '#AAAAAA', help: 'Rolling system audit log tracking layer toggles, errors, UI actions, and performance events.' },
+    { id: 'help', label: 'ℹ️ Help', color: '#00FF9F', help: 'Access the Operator Manual.' },
 ]
 
-function SectionToggle({ id, label, color, open, onToggle }) {
+function SectionToggle({ id, label, color, help, open, onToggle }) {
     return (
         <button
             onClick={() => onToggle(id)}
@@ -43,7 +48,14 @@ function SectionToggle({ id, label, color, open, onToggle }) {
                 letterSpacing: '0.05em',
             }}
         >
-            {open ? '▼' : '▶'} {label}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>{open ? '▼' : '▶'} {label}</span>
+                {help && open && (
+                    <span onClick={(e) => e.stopPropagation()} style={{ cursor: 'default' }}>
+                        <InfoPopover content={help} />
+                    </span>
+                )}
+            </div>
         </button>
     )
 }
@@ -75,7 +87,7 @@ async function runDemoMode(viewer) {
     }, 2000)
 }
 
-export default function PhaseIIRoot({ viewer }) {
+export default function PhaseIIRoot({ viewer, toggles }) {
     const [openSections, setOpenSections] = useState({ time: true, perf: true })
     const [demoActive, setDemoActive] = useState(false)
 
@@ -93,50 +105,52 @@ export default function PhaseIIRoot({ viewer }) {
     if (!viewer) return null
 
     return (
-        <div style={{ borderTop: '2px solid #00FF9F33', marginTop: '8px', paddingTop: '4px' }}>
-            {/* Phase II header */}
-            <div style={{
-                fontFamily: 'monospace', fontSize: '9px', color: '#00FF9F88', letterSpacing: '0.15em',
-                padding: '3px 0 6px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-                <span>PHASE II // INTELLIGENCE SUITE</span>
-                {!demoActive && (
-                    <button onClick={handleDemo} style={{
-                        background: 'transparent', border: '1px solid #00FF9F44', color: '#00FF9F88',
-                        fontFamily: 'monospace', fontSize: '9px', cursor: 'pointer', padding: '1px 6px', borderRadius: '2px',
-                    }}>
-                        DEMO
-                    </button>
-                )}
-            </div>
-
-            {/* Section toggles */}
-            {SECTIONS.map(sec => (
-                <div key={sec.id}>
-                    <SectionToggle
-                        id={sec.id} label={sec.label} color={sec.color}
-                        open={!!openSections[sec.id]}
-                        onToggle={toggleSection}
-                    />
-
-                    {openSections[sec.id] && (
-                        <div style={{ paddingLeft: '4px' }}>
-                            {sec.id === 'time' && <TimeControllerPanel viewer={viewer} />}
-                            {sec.id === 'satellites' && <SatellitesPanel viewer={viewer} />}
-                            {sec.id === 'seismic' && <SeismicSimPanel viewer={viewer} />}
-                            {sec.id === 'markers' && <MarkersPanel viewer={viewer} />}
-                            {sec.id === 'alerts' && <AlertsPanel viewer={viewer} />}
-                            {sec.id === 'cascade' && <CascadePanel />}
-                            {sec.id === 'correlation' && <CorrelationPanel viewer={viewer} />}
-                            {sec.id === 'threat' && <ThreatIndexPanel viewer={viewer} />}
-                            {sec.id === 'cinematic' && <CinematicPanel viewer={viewer} />}
-                            {sec.id === 'perf' && <PerformancePanel viewer={viewer} />}
-                        </div>
+        <>
+            <div style={{ borderTop: '2px solid #00FF9F33', marginTop: '8px', paddingTop: '4px' }}>
+                {/* Phase II header */}
+                <div style={{
+                    fontFamily: 'monospace', fontSize: '9px', color: '#00FF9F88', letterSpacing: '0.15em',
+                    padding: '3px 0 6px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                    <span>PHASE II // INTELLIGENCE SUITE</span>
+                    {!demoActive && (
+                        <button onClick={handleDemo} style={{
+                            background: 'transparent', border: '1px solid #00FF9F44', color: '#00FF9F88',
+                            fontFamily: 'monospace', fontSize: '9px', cursor: 'pointer', padding: '1px 6px', borderRadius: '2px',
+                        }}>
+                            DEMO
+                        </button>
                     )}
                 </div>
-            ))}
-            <VisualsRoot viewer={viewer} />
-        </div>
+
+                {/* Section toggles */}
+                {SECTIONS.map(sec => (
+                    <div key={sec.id}>
+                        <SectionToggle
+                            id={sec.id} label={sec.label} color={sec.color} help={sec.help}
+                            open={!!openSections[sec.id]}
+                            onToggle={toggleSection}
+                        />
+
+                        {openSections[sec.id] && (
+                            <div style={{ paddingLeft: '4px' }}>
+                                {sec.id === 'time' && <TimeControllerPanel viewer={viewer} />}
+                                {sec.id === 'satellites' && <SatellitesPanel viewer={viewer} />}
+                                {sec.id === 'seismic' && <SeismicSimPanel viewer={viewer} />}
+                                {sec.id === 'views' && <SavedViewsPanel viewer={viewer} toggles={toggles} />}
+                                {sec.id === 'threat' && <ThreatIndexPanel viewer={viewer} />}
+                                {sec.id === 'perf' && <PerformancePanel viewer={viewer} />}
+                                {sec.id === 'datasets' && <DatasetManagerPanel />}
+                                {sec.id === 'audit' && <AuditLogPanel />}
+                                {sec.id === 'help' && <HelpPanel />}
+                            </div>
+                        )}
+                    </div>
+                ))}
+                <VisualsRoot viewer={viewer} />
+            </div>
+            <WarpHome viewer={viewer} />
+        </>
     )
 }
