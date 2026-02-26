@@ -4,6 +4,7 @@ import * as satellite from 'satellite.js'
 import './App.css'
 import { parseTLEs, fetchWithRetry } from './utils.js'
 import { LAYER_DEFS, SHIPPING_ROUTES } from './config.js'
+import PhaseIIRoot from './ui/PhaseIIRoot.jsx'
 
 // ─── USER CONFIG ──────────────────────────────────────────────────────────────
 // Set VITE_FIRMS_MAP_KEY in .env (get a free key at https://firms.modaps.eosdis.nasa.gov/api/map_key/)
@@ -66,20 +67,20 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
             const json = await res.json()
             points.removeAll()
             let count = 0
-            ;(json.ac || []).forEach(a => {
-              const lon = a.lon,
-                lat = a.lat
-              const alt = typeof a.alt_baro === 'number' ? a.alt_baro * 0.3048 : 10000 // ft→m
-              if (lon == null || lat == null) return
-              points.add({
-                position: Cesium.Cartesian3.fromDegrees(lon, lat, Math.max(alt, 1000)),
-                color: Cesium.Color.fromCssColorString('#00FF9F').withAlpha(0.9),
-                pixelSize: 4,
-                outlineColor: Cesium.Color.fromCssColorString('#00FF9F').withAlpha(0.2),
-                outlineWidth: 2,
+              ; (json.ac || []).forEach(a => {
+                const lon = a.lon,
+                  lat = a.lat
+                const alt = typeof a.alt_baro === 'number' ? a.alt_baro * 0.3048 : 10000 // ft→m
+                if (lon == null || lat == null) return
+                points.add({
+                  position: Cesium.Cartesian3.fromDegrees(lon, lat, Math.max(alt, 1000)),
+                  color: Cesium.Color.fromCssColorString('#00FF9F').withAlpha(0.9),
+                  pixelSize: 4,
+                  outlineColor: Cesium.Color.fromCssColorString('#00FF9F').withAlpha(0.2),
+                  outlineWidth: 2,
+                })
+                count++
               })
-              count++
-            })
             setTelemetry(t => ({ ...t, AIR_RADAR: count }))
             setLayerStatus(s => ({ ...s, AIR_RADAR: 'active' }))
           } catch (err) {
@@ -209,34 +210,34 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
             primitives.removeAll()
             shadows.removeAll()
             let count = 0
-            ;(json.features || []).forEach(f => {
-              const [lon, lat] = f.geometry.coordinates
-              const mag = f.properties.mag || 1
-              if (!isFinite(lon) || !isFinite(lat)) return
+              ; (json.features || []).forEach(f => {
+                const [lon, lat] = f.geometry.coordinates
+                const mag = f.properties.mag || 1
+                if (!isFinite(lon) || !isFinite(lat)) return
 
-              const radius = Math.max(mag * 50_000, 20_000)
-              const alpha = Math.min(0.3 + mag * 0.08, 0.9)
-              const lineWidth = Math.max(1, mag * 0.7)
+                const radius = Math.max(mag * 50_000, 20_000)
+                const alpha = Math.min(0.3 + mag * 0.08, 0.9)
+                const lineWidth = Math.max(1, mag * 0.7)
 
-              // Shadow ring — dark halo at surface level, slightly wider
-              shadows.add({
-                positions: buildRingPositions(lon, lat, radius * 1.04, 48, 800),
-                width: lineWidth + 2,
-                material: Cesium.Material.fromType('Color', {
-                  color: Cesium.Color.fromCssColorString('#000000').withAlpha(0.18),
-                }),
+                // Shadow ring — dark halo at surface level, slightly wider
+                shadows.add({
+                  positions: buildRingPositions(lon, lat, radius * 1.04, 48, 800),
+                  width: lineWidth + 2,
+                  material: Cesium.Material.fromType('Color', {
+                    color: Cesium.Color.fromCssColorString('#000000').withAlpha(0.18),
+                  }),
+                })
+                // Main ring — raised for depth, glowing
+                primitives.add({
+                  positions: buildRingPositions(lon, lat, radius, 48, 12_000),
+                  width: lineWidth,
+                  material: Cesium.Material.fromType('PolylineGlow', {
+                    glowPower: 0.2,
+                    color: Cesium.Color.fromCssColorString('#FF4500').withAlpha(alpha),
+                  }),
+                })
+                count++
               })
-              // Main ring — raised for depth, glowing
-              primitives.add({
-                positions: buildRingPositions(lon, lat, radius, 48, 12_000),
-                width: lineWidth,
-                material: Cesium.Material.fromType('PolylineGlow', {
-                  glowPower: 0.2,
-                  color: Cesium.Color.fromCssColorString('#FF4500').withAlpha(alpha),
-                }),
-              })
-              count++
-            })
             setTelemetry(t => ({ ...t, SEISMIC_GRID: count }))
             setLayerStatus(s => ({ ...s, SEISMIC_GRID: 'active' }))
           } catch (err) {
@@ -361,43 +362,43 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
           const json = await res.json()
           let count = 0
           let colorIdx = 0
-          ;(json.features || []).forEach(feature => {
-            const geom = feature.geometry
-            if (!geom) return
-            const color = CABLE_COLORS[colorIdx % CABLE_COLORS.length]
-            colorIdx++
+            ; (json.features || []).forEach(feature => {
+              const geom = feature.geometry
+              if (!geom) return
+              const color = CABLE_COLORS[colorIdx % CABLE_COLORS.length]
+              colorIdx++
 
-            const processLineString = coords => {
-              if (!coords || coords.length < 2) return
-              const filtered = coords.filter(c => isFinite(c[0]) && isFinite(c[1]))
-              if (filtered.length < 2) return
+              const processLineString = coords => {
+                if (!coords || coords.length < 2) return
+                const filtered = coords.filter(c => isFinite(c[0]) && isFinite(c[1]))
+                if (filtered.length < 2) return
 
-              // Shadow trace — dark, wide, at ocean floor level
-              shadows.add({
-                positions: filtered.map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1], 600)),
-                width: 3,
-                material: Cesium.Material.fromType('Color', {
-                  color: Cesium.Color.fromCssColorString('#000000').withAlpha(0.16),
-                }),
-              })
-              // Main cable — raised above surface, glowing
-              lines.add({
-                positions: filtered.map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1], 20_000)),
-                width: 1.5,
-                material: Cesium.Material.fromType('PolylineGlow', {
-                  glowPower: 0.22,
-                  color,
-                }),
-              })
-              count++
-            }
+                // Shadow trace — dark, wide, at ocean floor level
+                shadows.add({
+                  positions: filtered.map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1], 600)),
+                  width: 3,
+                  material: Cesium.Material.fromType('Color', {
+                    color: Cesium.Color.fromCssColorString('#000000').withAlpha(0.16),
+                  }),
+                })
+                // Main cable — raised above surface, glowing
+                lines.add({
+                  positions: filtered.map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1], 20_000)),
+                  width: 1.5,
+                  material: Cesium.Material.fromType('PolylineGlow', {
+                    glowPower: 0.22,
+                    color,
+                  }),
+                })
+                count++
+              }
 
-            if (geom.type === 'MultiLineString') {
-              geom.coordinates.forEach(processLineString)
-            } else if (geom.type === 'LineString') {
-              processLineString(geom.coordinates)
-            }
-          })
+              if (geom.type === 'MultiLineString') {
+                geom.coordinates.forEach(processLineString)
+              } else if (geom.type === 'LineString') {
+                processLineString(geom.coordinates)
+              }
+            })
 
           setTelemetry(t => ({ ...t, FIBER_CABLES: count }))
           setLayerStatus(s => ({ ...s, FIBER_CABLES: 'active' }))
@@ -450,15 +451,15 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
             count++
           }
 
-          ;(json.features || []).forEach(f => {
-            const geom = f.geometry
-            if (!geom) return
-            if (geom.type === 'MultiLineString') {
-              geom.coordinates.forEach(processLineString)
-            } else if (geom.type === 'LineString') {
-              processLineString(geom.coordinates)
-            }
-          })
+            ; (json.features || []).forEach(f => {
+              const geom = f.geometry
+              if (!geom) return
+              if (geom.type === 'MultiLineString') {
+                geom.coordinates.forEach(processLineString)
+              } else if (geom.type === 'LineString') {
+                processLineString(geom.coordinates)
+              }
+            })
 
           setTelemetry(t => ({ ...t, TECTONIC_PLATES: count }))
           setLayerStatus(s => ({ ...s, TECTONIC_PLATES: 'active' }))
@@ -766,7 +767,7 @@ function useUtcClock() {
       const pad = n => String(n).padStart(2, '0')
       setUtc(
         `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())} ` +
-          `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} UTC`
+        `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} UTC`
       )
     }
     tick()
@@ -814,6 +815,7 @@ export default function App() {
   const [toggles, setToggles] = useState(buildInitialToggles)
   const [telemetry, setTelemetry] = useState(buildInitialTelemetry)
   const [layerStatus, setLayerStatus] = useState(buildInitialStatus)
+  const [viewerState, setViewerState] = useState(null)
   const initErrorRef = useRef(null)
 
   const utc = useUtcClock()
@@ -896,12 +898,12 @@ export default function App() {
               }),
             })
           }
-          ;(json.features || []).forEach(f => {
-            const g = f.geometry
-            if (!g) return
-            if (g.type === 'LineString') drawLine(g.coordinates)
-            else if (g.type === 'MultiLineString') g.coordinates.forEach(drawLine)
-          })
+            ; (json.features || []).forEach(f => {
+              const g = f.geometry
+              if (!g) return
+              if (g.type === 'LineString') drawLine(g.coordinates)
+              else if (g.type === 'MultiLineString') g.coordinates.forEach(drawLine)
+            })
         })
         .catch(() => {
           /* coastlines optional */
@@ -923,6 +925,7 @@ export default function App() {
       viewer.scene.msaaSamples = 1
 
       viewerRef.current = viewer
+      setViewerState(viewer)
 
       // Capture ref value for cleanup
       const layerData = layerDataRef.current
@@ -1002,7 +1005,7 @@ export default function App() {
             <span className="hud-title-icon" />
             DEXEARTH
           </div>
-          <div className="hud-subtitle">Tactical Data Suite // v1.0</div>
+          <div className="hud-subtitle">Tactical Data Suite // v2.0</div>
         </div>
 
         <div className="hud-layers">
@@ -1025,6 +1028,7 @@ export default function App() {
           <div className="hud-clock">
             <span>{utc}</span>
           </div>
+          <PhaseIIRoot viewer={viewerState} />
         </div>
       </aside>
     </div>

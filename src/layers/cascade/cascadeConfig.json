@@ -1,0 +1,81 @@
+{
+    "layers": [
+        "AIR_RADAR",
+        "ORBITAL_MATH",
+        "SEISMIC_GRID",
+        "THERMAL_FIRES",
+        "MARITIME_LANES",
+        "FIBER_CABLES",
+        "TECTONIC_PLATES",
+        "SATELLITES",
+        "SEISMIC_SIM",
+        "MARKERS",
+        "ALERTS",
+        "THREAT_INDEX"
+    ],
+    "events": [
+        {
+            "id": "cable_sever",
+            "label": "Cable Sever",
+            "desc": "Undersea cable cut disrupts comms",
+            "affects": [
+                "ORBITAL_MATH",
+                "SATELLITES",
+                "AIR_RADAR"
+            ]
+        },
+        {
+            "id": "satellite_loss",
+            "label": "Satellite Loss",
+            "desc": "Orbital satellite failure",
+            "affects": [
+                "SATELLITES",
+                "ORBITAL_MATH"
+            ]
+        },
+        {
+            "id": "regional_disruption",
+            "label": "Regional Disruption",
+            "desc": "Geo-bounded failure event",
+            "affects": [
+                "AIR_RADAR",
+                "SEISMIC_SIM",
+                "THERMAL_FIRES",
+                "MARITIME_LANES"
+            ]
+        }
+    ],
+    "degradationProfiles": {
+        "satellite_loss": {
+            "SATELLITES": {
+                "satCap": 50,
+                "groundTrackCap": 5
+            },
+            "ORBITAL_MATH": {
+                "refreshInterval": 30000
+            }
+        },
+        "cable_sever": {
+            "AIR_RADAR": {
+                "refreshInterval": 120000
+            },
+            "ORBITAL_MATH": {
+                "refreshInterval": 60000
+            },
+            "SATELLITES": {
+                "satCap": 150
+            }
+        },
+        "regional_disruption": {
+            "AIR_RADAR": {
+                "refreshInterval": 90000
+            },
+            "MARITIME_LANES": {
+                "visible": true
+            },
+            "THERMAL_FIRES": {
+                "refreshInterval": 600000
+            }
+        }
+    }
+}
