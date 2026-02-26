@@ -69,7 +69,7 @@ export function setMode(mode) {
 export function setManualTime(ms) {
   _manualTimeMs = ms
   _replayTimeMs = ms
-  if (_mode === MODES.MANUAL) _notify()
+  _notify()  // always notify — callers set mode before calling
 }
 
 export function setReplaySpeed(speed) {
@@ -79,9 +79,8 @@ export function setReplaySpeed(speed) {
 export function getReplaySpeed() { return _replaySpeed }
 
 export function step(offsetMs) {
-  const t = getTimeMs()
-  setManualTime(t + offsetMs)
   if (_mode !== MODES.MANUAL) setMode(MODES.MANUAL)
+  setManualTime(getTimeMs() + offsetMs)
 }
 
 export function resetToNow() {
@@ -105,7 +104,7 @@ export function fmtUtc(ms) {
   const d = new Date(ms)
   const pad = n => String(n).padStart(2, '0')
   return (
-    `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ` +
+    `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ` +
     `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`
   )
 }

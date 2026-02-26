@@ -124,7 +124,7 @@ function _rebuildPrimitive(scoredCells) {
                 translucent: true,
                 flat: true,
             }),
-            releaseGeometryInstances: false,
+            releaseGeometryInstances: true,  // allow GPU upload; we recreate each time
         })
         _viewer.scene.primitives.add(_primitive)
     } catch (err) {

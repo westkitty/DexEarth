@@ -117,7 +117,9 @@ export async function alertLogGetAll() {
 
 export async function alertLogAdd(entry) {
     const store = await _tx(STORES.alertLog, 'readwrite')
-    return _promisify(store.add({ ...entry, timeMs: Date.now() }))
+    // Preserve caller-provided timeMs; fall back to now
+    const record = { ...entry, timeMs: entry.timeMs ?? Date.now() }
+    return _promisify(store.add(record))
 }
 
 export async function alertLogClear() {

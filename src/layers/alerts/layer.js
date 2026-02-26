@@ -16,10 +16,18 @@ let _drawType = null   // 'circle' | 'polygon'
 let _drawVertices = []
 let _drawPolylineEntity = null
 let _soundEnabled = false
-let _watchSources = []  // array of { id, getGeometrySnapshot } objects (layer refs)
+let _watchSources = []
 let _onLogChange = []
 let _onGeofenceChange = []
 let _onStatusChange = []
+
+// Rate-limit map — must be declared before _checkWatchSources
+const _recentAlerts = new Map()
+
+// ── Notify helpers ────────────────────────────────────────────────────────────
+function _notifyLogChange() { _onLogChange.forEach(fn => { try { fn([..._alertLog]) } catch { /* ignore */ } }) }
+function _notifyGeofenceChange() { _onGeofenceChange.forEach(fn => { try { fn([..._geofences]) } catch { /* ignore */ } }) }
+function _notifyStatusChange(s) { _onStatusChange.forEach(fn => { try { fn(s) } catch { /* ignore */ } }) }
 
 // ── Geofence visualization ────────────────────────────────────────────────────
 function _buildCirclePositions(lon, lat, radiusKm, numPts = 64) {
@@ -73,7 +81,7 @@ function _removeGeofenceEntity(id) {
     _geofenceEntities.delete(id)
 }
 
-// ── Check incursions ──────────────────────────────────────────────────────────
+// ── Incursion detection ───────────────────────────────────────────────────────
 function _checkWatchSources(timeMs) {
     for (const src of _watchSources) {
         const snap = src.getGeometrySnapshot?.()
@@ -87,7 +95,6 @@ function _checkWatchSources(timeMs) {
                     inside = pointInPolygon(pt.lon, pt.lat, gf.polygon)
                 }
                 if (inside) {
-                    // Simple rate-limit: one alert per gf+target per minute
                     const key = `${gf.id}_${pt.meta?.name || `${pt.lon.toFixed(1)}_${pt.lat.toFixed(1)}`}`
                     if (_recentAlerts.has(key)) continue
                     _recentAlerts.set(key, timeMs)
@@ -114,8 +121,7 @@ function _checkWatchSources(timeMs) {
     }
 }
 
-const _recentAlerts = new Map()
-
+// ── Audio alert ───────────────────────────────────────────────────────────────
 function _playBeep() {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)()
@@ -128,9 +134,6 @@ function _playBeep() {
         osc.start(); osc.stop(ctx.currentTime + 0.3)
     } catch { /* ignore */ }
 }
-
-function _notifyLogChange() { _onLogChange.forEach(fn => { try { fn([..._alertLog]) } catch { /* ignore */ } }) }
-function _notifyGeofenceChange() { _onGeofenceChange.forEach(fn => { try { fn([..._geofences]) } catch { /* ignore */ } }) }
 
 // ── Drawing handler ───────────────────────────────────────────────────────────
 function _setupDrawing() {
@@ -189,14 +192,18 @@ export const alertsLayer = {
         _setupDrawing()
         _notifyGeofenceChange()
         _notifyLogChange()
+        _notifyStatusChange('active')
     },
 
     deactivate() {
         _geofences.forEach(gf => _removeGeofenceEntity(gf.id))
         _clearDraw()
         if (_handler) { _handler.destroy(); _handler = null }
-        _viewer = null
+        _geofences = []
+        _alertLog = []
         _watchSources = []
+        _viewer = null
+        _notifyStatusChange('idle')
     },
 
     tick({ timeMs }) {
@@ -261,4 +268,5 @@ export const alertsLayer = {
     getGeofences() { return [..._geofences] },
     onLogChange(fn) { _onLogChange.push(fn) },
     onGeofenceChange(fn) { _onGeofenceChange.push(fn) },
+    onStatus(fn) { _onStatusChange.push(fn) },
 }

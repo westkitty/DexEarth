@@ -84,6 +84,10 @@ export const performanceHud = {
     init(viewer, getSafeSettings) {
         _viewer = viewer
         if (getSafeSettings) _getSafeSettings = getSafeSettings
+        // Reset subscriber and counter state on re-init
+        _onUpdate = []
+        _safeModeCbs = []
+        _lowFpsFrames = 0
         if (_rafId) cancelAnimationFrame(_rafId)
         _lastFpsTime = Date.now()
         _frameCount = 0

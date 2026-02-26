@@ -17,8 +17,9 @@ const BUNDLED_PATH = '/data/tle/starter.tle'
  */
 export async function loadTLEs({ remoteUrl, forceRefresh = false } = {}) {
     const ttlMs = (settings.get('tleTtlHours') || 12) * 3_600_000
+    const useBundledOnly = settings.get('satelliteUseBundled') === true
 
-    // 1. Try cache
+    // 1. Try cache (unless force-refreshing)
     if (!forceRefresh) {
         const cached = await getCached(CACHE_KEY, ttlMs)
         if (cached && cached.data && cached.data.length > 0) {
@@ -26,9 +27,9 @@ export async function loadTLEs({ remoteUrl, forceRefresh = false } = {}) {
         }
     }
 
-    // 2. Try remote (through Vite proxy or user URL)
-    const url = remoteUrl || settings.get('satelliteRemoteUrl') || '/proxy/tle'
-    if (!settings.get('satelliteUseBundled')) {
+    // 2. Try remote (skip if bundled-only is explicitly enabled)
+    if (!useBundledOnly) {
+        const url = remoteUrl || settings.get('satelliteRemoteUrl') || '/proxy/tle'
         try {
             const res = await fetchWithRetry(url, {}, 2, 20_000)
             const text = await res.text()
@@ -44,26 +45,10 @@ export async function loadTLEs({ remoteUrl, forceRefresh = false } = {}) {
         }
     }
 
-    // Try remote anyway if bundled-preference is off, haven't already tried
-    if (settings.get('satelliteUseBundled')) {
-        try {
-            const res = await fetchWithRetry(url, {}, 1, 15_000)
-            const text = await res.text()
-            const records = parseTLEs(text)
-            if (records.length > 0) {
-                const fetchedAt = Date.now()
-                const expiresAt = fetchedAt + ttlMs
-                await setCached(CACHE_KEY, records, ttlMs)
-                return { records, source: 'remote', fetchedAt, expiresAt }
-            }
-        } catch {
-            /* fall through to bundled */
-        }
-    }
-
     // 3. Bundled fallback
     try {
         const res = await fetch(BUNDLED_PATH)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const text = await res.text()
         const records = parseTLEs(text)
         const fetchedAt = Date.now()

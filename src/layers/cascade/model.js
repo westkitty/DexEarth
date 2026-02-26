@@ -92,7 +92,10 @@ export const cascadeModel = {
     getState() { return getState() },
     getEventDefs() { return config.events },
     getCausalChain: _getCausalChain,
-    onChange(fn) { _onChange.push(fn) },
+    onChange(fn) {
+        _onChange.push(fn)
+        return () => { _onChange = _onChange.filter(f => f !== fn) }
+    },
 }
 
 function getState() {

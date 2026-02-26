@@ -69,6 +69,7 @@ export const markersLayer = {
         _markers.forEach(m => _removeEntityForMarker(m.id))
         _markers = []
         _entities.clear()
+        _onChangeCallbacks = []
         _viewer = null
     },
 

@@ -2,6 +2,8 @@
 // Same-device multi-tab synchronization: camera, time, layer toggles.
 // Uses the native BroadcastChannel API (no server needed).
 
+import * as Cesium from 'cesium'   // moved to top — used in _getCameraState
+
 const CHANNEL_NAME = 'dexearth'
 let _channel = null
 let _isLeader = true
@@ -20,14 +22,14 @@ function _getCameraState() {
     if (!_viewer) return null
     try {
         const cam = _viewer.camera
+        const carto = Cesium.Ellipsoid.WGS84.cartesianToCartographic(cam.positionWC)
         return {
-            lon: Cesium.Math ? undefined : undefined,  // handled below
-            raw: {
-                position: cam.positionWC.toArray?.() || [cam.positionWC.x, cam.positionWC.y, cam.positionWC.z],
-                heading: cam.heading,
-                pitch: cam.pitch,
-                roll: cam.roll,
-            },
+            lon: Cesium.Math.toDegrees(carto.longitude),
+            lat: Cesium.Math.toDegrees(carto.latitude),
+            alt: carto.height,
+            heading: cam.heading,
+            pitch: cam.pitch,
+            roll: cam.roll,
         }
     } catch { return null }
 }
@@ -84,6 +86,3 @@ export const broadcastSync = {
         _channel = null
     },
 }
-
-// Import Cesium lazily to avoid circular deps
-import * as Cesium from 'cesium'
