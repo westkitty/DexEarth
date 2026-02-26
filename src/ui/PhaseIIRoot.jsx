@@ -9,6 +9,7 @@ import CorrelationPanel from './panels/PhaseII/CorrelationPanel.jsx'
 import ThreatIndexPanel from './panels/PhaseII/ThreatIndexPanel.jsx'
 import CinematicPanel from './panels/PhaseII/CinematicPanel.jsx'
 import PerformancePanel from './panels/PhaseII/PerformancePanel.jsx'
+import VisualsRoot from './panels/Visuals/VisualsRoot.jsx'
 
 const SECTIONS = [
     { id: 'time', label: '⏱ Time', color: '#00FF9F' },
@@ -135,6 +136,7 @@ export default function PhaseIIRoot({ viewer }) {
                     )}
                 </div>
             ))}
+            <VisualsRoot viewer={viewer} />
         </div>
     )
 }

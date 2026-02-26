@@ -26,6 +26,41 @@ A tactical geospatial intelligence dashboard running entirely in the browser. Re
 
 ---
 
+## Phase III — Visuals + Overlays
+
+Zero-cost, offline-capable, non-breaking addition to Phase I/II.
+
+### Country Overlay System (🌐 Overlays panel)
+
+| Toggle | Description |
+|--------|-------------|
+| Country Borders | Polyline borders clamped to globe (glow toggle, width slider) |
+| Country Labels (Inside) | Centroid-placed names with LOD + screen-space collision avoidance |
+| Labels (Follow Borders) | Canvas text billboards rotated to align with longest border segment |
+
+**Search**: Type any country name → fly-to and highlight on globe. Click a border/label to select.
+
+**Bundled data** (Natural Earth, public domain):
+- `public/data/borders/ne_110m_admin_0_countries.geojson`
+- `public/data/borders/ne_50m_admin_0_countries.geojson`
+- `public/data/borders/country_index.json` (pre-computed — run `node scripts/generate_country_index.js` to regenerate)
+
+### Render Style Presets (🎨 Render Style panel)
+
+| Preset | Description | GPU Cost |
+|--------|-------------|----------|
+| 🌍 Realistic | Lighting + atmosphere + fog + FXAA | Low |
+| 🎨 Cel-Shaded | GLSL edge-detect + posterize | Medium |
+| 🔵 Hologram | Cyan grade + scanlines + animated jitter + lat/lon grid | Medium |
+| 🔲 Wireframe | Dark globe + lat/lon PolylineCollection | **Very Low** |
+| 🌑 Night-Ops | Vignette + green desaturate + glowing overlays | Low |
+
+**Safe Mode**: Auto-activates at < 25 FPS — removes expensive PostProcessStages, reduces label density. Manual toggle in panel.
+
+See [docs/visuals-overlays.md](docs/visuals-overlays.md) for full architecture + performance notes.
+
+---
+
 ## Phase II — Zero-Cost Intelligence Suite
 
 All Phase II features operate without API keys, paid services, or logins. Bundled fallback data ensures the app works offline.
