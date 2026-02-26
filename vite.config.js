@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import cesium from 'vite-plugin-cesium';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import cesium from 'vite-plugin-cesium'
 
 // Aggregates global flight data from airplanes.live (no CORS headers on their API)
 // by querying 4 regional endpoints in parallel and deduplicating by ICAO hex.
@@ -8,7 +8,12 @@ const flightsAggregatorPlugin = {
   name: 'flights-aggregator',
   configureServer(server) {
     server.middlewares.use('/proxy/flights', async (_req, res) => {
-      const POINTS = [[45, -95], [50, 10], [30, 100], [-20, 30]]
+      const POINTS = [
+        [45, -95],
+        [50, 10],
+        [30, 100],
+        [-20, 30],
+      ]
       const RADIUS = 4000 // nautical miles
       const byHex = new Map()
       await Promise.all(
@@ -17,8 +22,12 @@ const flightsAggregatorPlugin = {
             const r = await fetch(`https://api.airplanes.live/v2/point/${lat}/${lon}/${RADIUS}`)
             if (!r.ok) return
             const d = await r.json()
-            ;(d.ac || []).forEach(a => { if (a.hex) byHex.set(a.hex, a) })
-          } catch { /* regional failure is non-fatal */ }
+            ;(d.ac || []).forEach(a => {
+              if (a.hex) byHex.set(a.hex, a)
+            })
+          } catch {
+            /* regional failure is non-fatal */
+          }
         })
       )
       res.setHeader('Content-Type', 'application/json')
@@ -55,4 +64,4 @@ export default defineConfig({
       },
     },
   },
-});
+})

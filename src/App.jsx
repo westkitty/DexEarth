@@ -2,24 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Cesium from 'cesium'
 import * as satellite from 'satellite.js'
 import './App.css'
+import { parseTLEs, fetchWithRetry } from './utils.js'
+import { LAYER_DEFS, SHIPPING_ROUTES } from './config.js'
 
 // ─── USER CONFIG ──────────────────────────────────────────────────────────────
-// Get a free NASA FIRMS MAP_KEY at: https://firms.modaps.eosdis.nasa.gov/api/map_key/
-const FIRMS_MAP_KEY = 'YOUR_KEY_HERE'
-
-// ─── LAYER DEFINITIONS ────────────────────────────────────────────────────────
-const LAYER_DEFS = [
-  { id: 'AIR_RADAR',       label: 'AIR_RADAR',       desc: 'Live Flight Traffic' },
-  { id: 'ORBITAL_MATH',    label: 'ORBITAL_MATH',    desc: 'Satellite Propagation' },
-  { id: 'SEISMIC_GRID',    label: 'SEISMIC_GRID',    desc: 'USGS Seismic Events' },
-  { id: 'THERMAL_FIRES',   label: 'THERMAL_FIRES',   desc: 'NASA FIRMS Hotspots' },
-  { id: 'MARITIME_LANES',  label: 'MARITIME_LANES',  desc: 'Shipping Routes' },
-  { id: 'FIBER_CABLES',    label: 'FIBER_CABLES',    desc: 'Undersea Cables' },
-  { id: 'TECTONIC_PLATES', label: 'TECTONIC_PLATES', desc: 'Plate Boundaries' },
-  { id: 'CLOUD_SYSTEMS',   label: 'CLOUD_SYSTEMS',   desc: '3D Cloud Cover' },
-  { id: 'SOLAR_SYNC',      label: 'SOLAR_SYNC',      desc: 'Day/Night Terminator' },
-  { id: 'VISUAL_FX',       label: 'VISUAL_FX',       desc: 'Film Grain + Vignette' },
-]
+// Set VITE_FIRMS_MAP_KEY in .env (get a free key at https://firms.modaps.eosdis.nasa.gov/api/map_key/)
+// Falls back to placeholder, which gracefully shows THERMAL_FIRES as UNAVAILABLE.
+const FIRMS_MAP_KEY = import.meta.env.VITE_FIRMS_MAP_KEY ?? 'YOUR_KEY_HERE'
 
 // ─── CABLE NEON PALETTE ───────────────────────────────────────────────────────
 const CABLE_COLORS = [
@@ -33,78 +22,8 @@ const CABLE_COLORS = [
   Cesium.Color.fromCssColorString('#00CCFF').withAlpha(0.6),
 ]
 
-// ─── MAJOR SHIPPING ROUTES (static inline waypoints) ─────────────────────────
-const SHIPPING_ROUTES = [
-  // Strait of Malacca → South China Sea → Pacific
-  { name: 'Malacca-Pacific', coords: [[103.8,1.3],[104.5,2.0],[106.0,4.0],[109.0,6.0],[114.0,7.0],[118.0,8.5],[122.0,10.0],[127.0,12.0],[132.0,14.0],[140.0,15.5],[145.0,15.0],[150.0,12.0]] },
-  // North Atlantic (Europe-East US)
-  { name: 'N-Atlantic', coords: [[-5.0,48.0],[-10.0,47.0],[-20.0,45.5],[-30.0,44.0],[-40.0,42.5],[-50.0,42.0],[-60.0,41.5],[-65.0,41.0],[-70.0,40.5],[-74.0,40.7]] },
-  // South Atlantic (Europe-South America)
-  { name: 'S-Atlantic', coords: [[-9.0,38.0],[-12.0,30.0],[-15.0,20.0],[-20.0,10.0],[-25.0,0.0],[-30.0,-10.0],[-38.0,-20.0],[-43.0,-23.0]] },
-  // Suez Canal → Mediterranean → Atlantic
-  { name: 'Suez-Med', coords: [[32.5,30.0],[32.0,31.5],[31.0,33.0],[29.0,34.0],[25.0,35.0],[18.0,36.0],[10.0,37.0],[5.0,36.5],[0.0,36.0],[-5.0,36.0],[-8.0,36.5],[-9.0,38.0]] },
-  // Cape of Good Hope route
-  { name: 'Cape-Route', coords: [[32.5,30.0],[40.0,22.0],[45.0,12.0],[50.0,2.0],[52.0,-8.0],[50.0,-18.0],[44.0,-28.0],[36.0,-35.0],[26.0,-38.0],[18.0,-34.5],[10.0,-30.0],[0.0,-20.0],[-10.0,-10.0],[-20.0,0.0],[-30.0,10.0],[-43.0,-23.0]] },
-  // Strait of Hormuz → Indian Ocean
-  { name: 'Hormuz-IO', coords: [[56.5,24.5],[60.0,22.0],[65.0,18.0],[68.0,14.0],[70.0,10.0],[72.0,6.0],[75.0,2.0],[80.0,-2.0],[85.0,-5.0],[90.0,-8.0],[95.0,-8.5],[100.0,-6.0],[103.8,1.3]] },
-  // Panama Canal → Pacific
-  { name: 'Panama-Pacific', coords: [[-79.5,9.0],[-82.0,10.0],[-87.0,12.0],[-92.0,13.0],[-98.0,14.0],[-105.0,16.0],[-115.0,18.0],[-130.0,20.0],[-145.0,22.0],[-155.0,22.0],[-160.0,20.0]] },
-  // Trans-Pacific (Asia to West US)
-  { name: 'Trans-Pacific', coords: [[122.0,10.0],[130.0,15.0],[140.0,22.0],[150.0,30.0],[155.0,35.0],[160.0,38.0],[165.0,40.0],[170.0,42.0],[175.0,43.0],[-175.0,43.0],[-170.0,43.0],[-160.0,42.0],[-150.0,38.0],[-140.0,34.0],[-130.0,30.0],[-122.0,37.4]] },
-  // North Sea (Europe internal)
-  { name: 'N-Sea', coords: [[3.5,51.5],[4.5,52.5],[5.0,54.0],[6.0,56.0],[7.0,57.5],[8.5,58.0],[10.0,57.5],[12.0,56.0],[14.0,55.5]] },
-  // Indian Ocean (India-East Africa)
-  { name: 'IO-E-Africa', coords: [[72.8,18.9],[70.0,15.0],[65.0,12.0],[60.0,10.0],[55.0,8.0],[50.0,6.0],[45.0,4.0],[40.0,2.0],[36.8,-1.3],[39.0,-6.8]] },
-  // South China Sea (China-Australia)
-  { name: 'SCS-Australia', coords: [[114.0,22.0],[114.0,18.0],[112.0,12.0],[110.0,6.0],[106.5,2.0],[104.0,-2.0],[108.0,-8.0],[112.0,-14.0],[114.0,-18.0],[115.0,-22.0],[116.0,-25.0],[117.0,-29.0],[115.0,-32.0],[114.0,-35.0]] },
-  // Mediterranean internal
-  { name: 'Med-Internal', coords: [[2.0,43.0],[6.0,43.5],[10.0,44.0],[14.0,44.5],[18.0,41.0],[20.0,39.0],[24.0,36.0],[26.0,38.0],[28.0,41.0],[30.0,40.0],[32.0,36.0],[35.0,33.0]] },
-]
-
-// ─── FETCH RETRY WRAPPER ──────────────────────────────────────────────────────
-async function fetchWithRetry(url, opts = {}, maxRetries = 3, timeoutMs = 20_000) {
-  const merged = {
-    mode: 'cors',
-    ...opts,
-    headers: {
-      Accept: 'application/json, text/plain, */*',
-      ...(opts.headers || {}),
-    },
-  }
-  for (let i = 0; i < maxRetries; i++) {
-    const controller = new AbortController()
-    const tid = setTimeout(() => controller.abort(), timeoutMs)
-    try {
-      const res = await fetch(url, { ...merged, signal: controller.signal })
-      clearTimeout(tid)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return res
-    } catch (err) {
-      clearTimeout(tid)
-      if (i === maxRetries - 1) throw err
-      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)))
-    }
-  }
-}
-
-// ─── TLE PARSER ───────────────────────────────────────────────────────────────
-function parseTLEs(rawText) {
-  const lines = rawText.trim().split('\n').map(l => l.trim()).filter(Boolean)
-  const records = []
-  for (let i = 0; i < lines.length - 2; i++) {
-    const name = lines[i]
-    const line1 = lines[i + 1]
-    const line2 = lines[i + 2]
-    if (line1.startsWith('1 ') && line2.startsWith('2 ')) {
-      try {
-        const satrec = satellite.twoline2satrec(line1, line2)
-        records.push({ name, satrec })
-        i += 2
-      } catch { /* skip invalid */ }
-    }
-  }
-  return records
-}
+// SHIPPING_ROUTES imported from ./config.js
+// parseTLEs and fetchWithRetry imported from ./utils.js
 
 // ─── SEISMIC RING HELPER ──────────────────────────────────────────────────────
 function buildRingPositions(lon, lat, radiusMeters, numPts = 48, altitude = 500) {
@@ -115,7 +34,13 @@ function buildRingPositions(lon, lat, radiusMeters, numPts = 48, altitude = 500)
     const angle = (i / numPts) * 2 * Math.PI
     const dLon = (angularRadius / Math.cos((lat * Math.PI) / 180)) * Math.cos(angle)
     const dLat = angularRadius * Math.sin(angle)
-    positions.push(Cesium.Cartesian3.fromDegrees(lon + (dLon * 180) / Math.PI, lat + (dLat * 180) / Math.PI, altitude))
+    positions.push(
+      Cesium.Cartesian3.fromDegrees(
+        lon + (dLon * 180) / Math.PI,
+        lat + (dLat * 180) / Math.PI,
+        altitude
+      )
+    )
   }
   return positions
 }
@@ -128,7 +53,6 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
 
   try {
     switch (layerId) {
-
       // ── AIR_RADAR ──────────────────────────────────────────────────────────
       case 'AIR_RADAR': {
         const points = new Cesium.PointPrimitiveCollection()
@@ -143,7 +67,8 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
             points.removeAll()
             let count = 0
             ;(json.ac || []).forEach(a => {
-              const lon = a.lon, lat = a.lat
+              const lon = a.lon,
+                lat = a.lat
               const alt = typeof a.alt_baro === 'number' ? a.alt_baro * 0.3048 : 10000 // ft→m
               if (lon == null || lat == null) return
               points.add({
@@ -252,7 +177,9 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
                   }),
                 })
               }
-            } catch { /* skip bad record */ }
+            } catch {
+              /* skip bad record */
+            }
           })
 
           setTelemetry(t => ({ ...t, ORBITAL_MATH: count }))
@@ -423,7 +350,12 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
           ]
           let res
           for (const cu of cableUrls) {
-            try { res = await fetchWithRetry(cu, {}, 2, 20_000); break } catch { /* try next */ }
+            try {
+              res = await fetchWithRetry(cu, {}, 2, 20_000)
+              break
+            } catch {
+              /* try next */
+            }
           }
           if (!res) throw new Error('All cable sources failed')
           const json = await res.json()
@@ -556,13 +488,69 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
         //   Subtropical  — marine stratocumulus off west coasts, 10–35°
         //   Polar fronts — 65–85° both hemispheres
         const BANDS = [
-          { latMin: -10,  latMax:  10, count: 110, altMin:  4000, altMax: 14000, sizeMin: 200000, sizeMax: 650000 },
-          { latMin:  35,  latMax:  65, count:  90, altMin:  5000, altMax: 16000, sizeMin: 250000, sizeMax: 700000 },
-          { latMin: -65,  latMax: -35, count:  90, altMin:  5000, altMax: 16000, sizeMin: 250000, sizeMax: 700000 },
-          { latMin:  10,  latMax:  35, count:  50, altMin:  1500, altMax:  5000, sizeMin: 120000, sizeMax: 450000 },
-          { latMin: -35,  latMax: -10, count:  50, altMin:  1500, altMax:  5000, sizeMin: 120000, sizeMax: 450000 },
-          { latMin:  65,  latMax:  85, count:  30, altMin:  2000, altMax:  9000, sizeMin: 150000, sizeMax: 500000 },
-          { latMin: -85,  latMax: -65, count:  30, altMin:  2000, altMax:  9000, sizeMin: 150000, sizeMax: 500000 },
+          {
+            latMin: -10,
+            latMax: 10,
+            count: 110,
+            altMin: 4000,
+            altMax: 14000,
+            sizeMin: 200000,
+            sizeMax: 650000,
+          },
+          {
+            latMin: 35,
+            latMax: 65,
+            count: 90,
+            altMin: 5000,
+            altMax: 16000,
+            sizeMin: 250000,
+            sizeMax: 700000,
+          },
+          {
+            latMin: -65,
+            latMax: -35,
+            count: 90,
+            altMin: 5000,
+            altMax: 16000,
+            sizeMin: 250000,
+            sizeMax: 700000,
+          },
+          {
+            latMin: 10,
+            latMax: 35,
+            count: 50,
+            altMin: 1500,
+            altMax: 5000,
+            sizeMin: 120000,
+            sizeMax: 450000,
+          },
+          {
+            latMin: -35,
+            latMax: -10,
+            count: 50,
+            altMin: 1500,
+            altMax: 5000,
+            sizeMin: 120000,
+            sizeMax: 450000,
+          },
+          {
+            latMin: 65,
+            latMax: 85,
+            count: 30,
+            altMin: 2000,
+            altMax: 9000,
+            sizeMin: 150000,
+            sizeMax: 500000,
+          },
+          {
+            latMin: -85,
+            latMax: -65,
+            count: 30,
+            altMin: 2000,
+            altMax: 9000,
+            sizeMin: 150000,
+            sizeMax: 500000,
+          },
         ]
 
         let totalClouds = 0
@@ -571,16 +559,16 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
             const lon = Math.random() * 360 - 180
             const lat = band.latMin + Math.random() * (band.latMax - band.latMin)
             const alt = band.altMin + Math.random() * (band.altMax - band.altMin)
-            const w   = band.sizeMin + Math.random() * (band.sizeMax - band.sizeMin)
-            const h   = w * (0.12 + Math.random() * 0.18)   // height 12–30% of width
-            const d   = w * (0.25 + Math.random() * 0.30)   // depth  25–55% of width
+            const w = band.sizeMin + Math.random() * (band.sizeMax - band.sizeMin)
+            const h = w * (0.12 + Math.random() * 0.18) // height 12–30% of width
+            const d = w * (0.25 + Math.random() * 0.3) // depth  25–55% of width
 
             cloudCollection.add({
-              position:    Cesium.Cartesian3.fromDegrees(lon, lat, alt),
-              scale:       new Cesium.Cartesian2(w, h),
+              position: Cesium.Cartesian3.fromDegrees(lon, lat, alt),
+              scale: new Cesium.Cartesian2(w, h),
               maximumSize: new Cesium.Cartesian3(w, h, d),
-              slice:       0.15 + Math.random() * 0.40,
-              brightness:  0.82 + Math.random() * 0.18,
+              slice: 0.15 + Math.random() * 0.4,
+              brightness: 0.82 + Math.random() * 0.18,
             })
             totalClouds++
           }
@@ -736,7 +724,8 @@ function deactivateLayer(viewer, layerDataRef, layerId, setTelemetry, setLayerSt
       }
       break
     }
-    default: break
+    default:
+      break
   }
 
   setTelemetry(t => ({ ...t, [layerId]: 0 }))
@@ -755,16 +744,16 @@ function buildInitialStatus() {
 }
 function buildInitialLayerData() {
   return {
-    AIR_RADAR:      { points: null, interval: null },
-    ORBITAL_MATH:   { points: null, arcs: null, interval: null, tleData: [], history: {} },
-    SEISMIC_GRID:   { primitives: null, shadows: null, interval: null },
-    THERMAL_FIRES:  { points: null, interval: null },
+    AIR_RADAR: { points: null, interval: null },
+    ORBITAL_MATH: { points: null, arcs: null, interval: null, tleData: [], history: {} },
+    SEISMIC_GRID: { primitives: null, shadows: null, interval: null },
+    THERMAL_FIRES: { points: null, interval: null },
     MARITIME_LANES: { lines: null, shadows: null },
-    FIBER_CABLES:   { lines: null, shadows: null },
-    TECTONIC_PLATES:{ lines: null, shadows: null },
-    CLOUD_SYSTEMS:  { cloudCollection: null },
-    SOLAR_SYNC:     { enabled: false, interval: null },
-    VISUAL_FX:      { enabled: false },
+    FIBER_CABLES: { lines: null, shadows: null },
+    TECTONIC_PLATES: { lines: null, shadows: null },
+    CLOUD_SYSTEMS: { cloudCollection: null },
+    SOLAR_SYNC: { enabled: false, interval: null },
+    VISUAL_FX: { enabled: false },
   }
 }
 
@@ -776,8 +765,8 @@ function useUtcClock() {
       const now = new Date()
       const pad = n => String(n).padStart(2, '0')
       setUtc(
-        `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())} ` +
-        `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} UTC`
+        `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())} ` +
+          `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} UTC`
       )
     }
     tick()
@@ -791,11 +780,12 @@ function useUtcClock() {
 function LayerRow({ def, toggled, status, telemetry, onToggle }) {
   const count = telemetry[def.id]
   // String telemetry (e.g. SOLAR_SYNC UTC time) renders as-is; numbers get " pts" suffix
-  const countLabel = status[def.id] === 'error'
-    ? 'UNAVAILABLE'
-    : typeof count === 'string' && count.length > 0
-      ? count
-      : `${(typeof count === 'number' ? count : 0).toLocaleString()} pts`
+  const countLabel =
+    status[def.id] === 'error'
+      ? 'UNAVAILABLE'
+      : typeof count === 'string' && count.length > 0
+        ? count
+        : `${(typeof count === 'number' ? count : 0).toLocaleString()} pts`
 
   return (
     <label className="layer-row">
@@ -835,115 +825,118 @@ export default function App() {
 
     let viewer
     try {
-    viewer = new Cesium.Viewer(cesiumContainerRef.current, {
-      baseLayer: false,
-      baseLayerPicker: false,
-      geocoder: false,
-      homeButton: false,
-      sceneModePicker: false,
-      navigationHelpButton: false,
-      animation: false,
-      timeline: false,
-      fullscreenButton: false,
-      vrButton: false,
-      infoBox: false,
-      selectionIndicator: false,
-      skyAtmosphere: false,  // no blue haze; skyBox left default for starfield
-    })
-
-    // Dark globe appearance
-    viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0d1520')
-    viewer.scene.globe.showGroundAtmosphere = false
-    viewer.scene.fog.enabled = false
-    if (viewer.scene.moon) viewer.scene.moon.show = false
-    if (viewer.scene.sun) viewer.scene.sun.show = false  // no sun glare
-    viewer.scene.globe.enableLighting = false
-
-    // Base imagery: ESRI World Imagery tile template (synchronous, no async fromUrl needed)
-    // Google Earth-quality global satellite mosaic, no API key required.
-    viewer.imageryLayers.removeAll()
-    const baseLayer = viewer.imageryLayers.addImageryProvider(
-      new Cesium.UrlTemplateImageryProvider({
-        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        maximumLevel: 19,
-        credit: 'Esri, DigitalGlobe, GeoEye, Earthstar Geographics, USDA NAIP',
+      viewer = new Cesium.Viewer(cesiumContainerRef.current, {
+        baseLayer: false,
+        baseLayerPicker: false,
+        geocoder: false,
+        homeButton: false,
+        sceneModePicker: false,
+        navigationHelpButton: false,
+        animation: false,
+        timeline: false,
+        fullscreenButton: false,
+        vrButton: false,
+        infoBox: false,
+        selectionIndicator: false,
+        skyAtmosphere: false, // no blue haze; skyBox left default for starfield
       })
-    )
-    baseLayer.brightness = 0.9
-    baseLayer.saturation = 0.9
-    baseLayer.contrast = 1.1
 
-    // Bloom post-processing
-    try {
-      viewer.scene.postProcessStages.bloom.enabled = true
-      viewer.scene.postProcessStages.bloom.uniforms.glowOnly = false
-      viewer.scene.postProcessStages.bloom.uniforms.contrast = 128
-      viewer.scene.postProcessStages.bloom.uniforms.brightness = -0.3
-      viewer.scene.postProcessStages.bloom.uniforms.delta = 1.0
-      viewer.scene.postProcessStages.bloom.uniforms.sigma = 3.78
-      viewer.scene.postProcessStages.bloom.uniforms.stepSize = 5.0
-    } catch { /* bloom not supported in all environments */ }
+      // Dark globe appearance
+      viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0d1520')
+      viewer.scene.globe.showGroundAtmosphere = false
+      viewer.scene.fog.enabled = false
+      if (viewer.scene.moon) viewer.scene.moon.show = false
+      if (viewer.scene.sun) viewer.scene.sun.show = false // no sun glare
+      viewer.scene.globe.enableLighting = false
 
-    // Always-on tactical coastlines (loaded async, non-blocking)
-    const coastlineLines = new Cesium.PolylineCollection()
-    viewer.scene.primitives.add(coastlineLines)
-    fetch('/proxy/coastlines')
-      .then(r => r.json())
-      .then(json => {
-        const drawLine = coords => {
-          if (!coords || coords.length < 2) return
-          const positions = coords
-            .filter(c => Array.isArray(c) && isFinite(c[0]) && isFinite(c[1]))
-            .map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1], 1000))
-          if (positions.length < 2) return
-          coastlineLines.add({
-            positions,
-            width: 1,
-            material: Cesium.Material.fromType('Color', {
-              color: Cesium.Color.fromCssColorString('#00FF9F').withAlpha(0.18),
-            }),
-          })
-        }
-        ;(json.features || []).forEach(f => {
-          const g = f.geometry
-          if (!g) return
-          if (g.type === 'LineString') drawLine(g.coordinates)
-          else if (g.type === 'MultiLineString') g.coordinates.forEach(drawLine)
+      // Base imagery: ESRI World Imagery tile template (synchronous, no async fromUrl needed)
+      // Google Earth-quality global satellite mosaic, no API key required.
+      viewer.imageryLayers.removeAll()
+      const baseLayer = viewer.imageryLayers.addImageryProvider(
+        new Cesium.UrlTemplateImageryProvider({
+          url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          maximumLevel: 19,
+          credit: 'Esri, DigitalGlobe, GeoEye, Earthstar Geographics, USDA NAIP',
         })
-      })
-      .catch(() => { /* coastlines optional */ })
+      )
+      baseLayer.brightness = 0.9
+      baseLayer.saturation = 0.9
+      baseLayer.contrast = 1.1
 
-    // Full globe view: camera directly above equator, 20,000km up.
-    // pitch=-PI/2 (straight down) ensures the entire globe disc is always in frame.
-    // Stars fill the space around the globe's edges thanks to the default skyBox.
-    viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(10, 0, 20_000_000),
-      orientation: {
-        heading: 0.0,
-        pitch: -Cesium.Math.PI_OVER_TWO,
-        roll: 0.0,
-      },
-    })
-
-    // Performance: disable MSAA on mobile/tablet
-    viewer.scene.msaaSamples = 1
-
-    viewerRef.current = viewer
-
-    // Capture ref value for cleanup
-    const layerData = layerDataRef.current
-
-    return () => {
-      // Clean up all layer intervals
-      Object.values(layerData).forEach(layer => {
-        if (layer && layer.interval) clearInterval(layer.interval)
-      })
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.destroy()
+      // Bloom post-processing
+      try {
+        viewer.scene.postProcessStages.bloom.enabled = true
+        viewer.scene.postProcessStages.bloom.uniforms.glowOnly = false
+        viewer.scene.postProcessStages.bloom.uniforms.contrast = 128
+        viewer.scene.postProcessStages.bloom.uniforms.brightness = -0.3
+        viewer.scene.postProcessStages.bloom.uniforms.delta = 1.0
+        viewer.scene.postProcessStages.bloom.uniforms.sigma = 3.78
+        viewer.scene.postProcessStages.bloom.uniforms.stepSize = 5.0
+      } catch {
+        /* bloom not supported in all environments */
       }
-      viewerRef.current = null
-    }
 
+      // Always-on tactical coastlines (loaded async, non-blocking)
+      const coastlineLines = new Cesium.PolylineCollection()
+      viewer.scene.primitives.add(coastlineLines)
+      fetch('/proxy/coastlines')
+        .then(r => r.json())
+        .then(json => {
+          const drawLine = coords => {
+            if (!coords || coords.length < 2) return
+            const positions = coords
+              .filter(c => Array.isArray(c) && isFinite(c[0]) && isFinite(c[1]))
+              .map(c => Cesium.Cartesian3.fromDegrees(c[0], c[1], 1000))
+            if (positions.length < 2) return
+            coastlineLines.add({
+              positions,
+              width: 1,
+              material: Cesium.Material.fromType('Color', {
+                color: Cesium.Color.fromCssColorString('#00FF9F').withAlpha(0.18),
+              }),
+            })
+          }
+          ;(json.features || []).forEach(f => {
+            const g = f.geometry
+            if (!g) return
+            if (g.type === 'LineString') drawLine(g.coordinates)
+            else if (g.type === 'MultiLineString') g.coordinates.forEach(drawLine)
+          })
+        })
+        .catch(() => {
+          /* coastlines optional */
+        })
+
+      // Full globe view: camera directly above equator, 20,000km up.
+      // pitch=-PI/2 (straight down) ensures the entire globe disc is always in frame.
+      // Stars fill the space around the globe's edges thanks to the default skyBox.
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(10, 0, 20_000_000),
+        orientation: {
+          heading: 0.0,
+          pitch: -Cesium.Math.PI_OVER_TWO,
+          roll: 0.0,
+        },
+      })
+
+      // Performance: disable MSAA on mobile/tablet
+      viewer.scene.msaaSamples = 1
+
+      viewerRef.current = viewer
+
+      // Capture ref value for cleanup
+      const layerData = layerDataRef.current
+
+      return () => {
+        // Clean up all layer intervals
+        Object.values(layerData).forEach(layer => {
+          if (layer && layer.interval) clearInterval(layer.interval)
+        })
+        if (viewer && !viewer.isDestroyed()) {
+          viewer.destroy()
+        }
+        viewerRef.current = null
+      }
     } catch (err) {
       console.error('Cesium init error:', err)
       // Write error to DOM directly to avoid lint rule against setState-in-effect
@@ -955,7 +948,7 @@ export default function App() {
   }, [])
 
   // ── Toggle handler ────────────────────────────────────────────────────────
-  const handleToggle = useCallback((layerId) => {
+  const handleToggle = useCallback(layerId => {
     setToggles(prev => {
       const newVal = !prev[layerId]
       const viewer = viewerRef.current
@@ -977,7 +970,24 @@ export default function App() {
       <div ref={cesiumContainerRef} className="globe" />
 
       {/* Init error display (hidden by default, shown by DOM ref on error) */}
-      <div ref={initErrorRef} style={{display:'none',position:'fixed',top:0,left:0,right:'280px',zIndex:999,background:'#1a0000',color:'#ff6666',fontFamily:'monospace',fontSize:'11px',padding:'12px 16px',borderBottom:'1px solid #ff4444',wordBreak:'break-all'}} />
+      <div
+        ref={initErrorRef}
+        style={{
+          display: 'none',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: '280px',
+          zIndex: 999,
+          background: '#1a0000',
+          color: '#ff6666',
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          padding: '12px 16px',
+          borderBottom: '1px solid #ff4444',
+          wordBreak: 'break-all',
+        }}
+      />
 
       {/* VFX: Film grain (toggled via class) */}
       <div ref={vfxGrainRef} className="vfx-grain" />

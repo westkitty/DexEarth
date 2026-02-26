@@ -1,0 +1,30 @@
+name: Feature Request
+description: Suggest a new layer, data source, or UI improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What do you want?
+      description: Describe the feature. What problem does it solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: data_source
+    attributes:
+      label: Data source (if applicable)
+      description: Link to API docs, sample data, or GeoJSON source
+    validations:
+      required: false
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Rough effort estimate
+      options:
+        - Small (new data layer using existing pattern)
+        - Medium (new layer type or significant UI change)
+        - Large (architectural change or new dependency)
+    validations:
+      required: false
