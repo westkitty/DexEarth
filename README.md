@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="public/DexEarthLogo.png" alt="DexEarth Logo" width="300" />
+</div>
+
 # DexEarth
 
 ![License](https://img.shields.io/badge/License-Unlicense-blue.svg)

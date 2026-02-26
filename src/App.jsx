@@ -1159,39 +1159,15 @@ export default function App() {
       {/* VFX: Persistent vignette */}
       <div className="vfx-vignette" />
 
-      {/* HUD Sidebar */}
-      <aside className="hud">
-        <div className="hud-header">
-          <div className="hud-title">
-            <span className="hud-title-icon" />
-            DEXEARTH
-          </div>
-          <div className="hud-subtitle">Tactical Data Suite // v2.0</div>
-        </div>
-
-        <div className="hud-layers">
-          <div className="hud-section-label">Surveillance Stack</div>
-
-          {LAYER_DEFS.map(def => (
-            <LayerRow
-              key={def.id}
-              def={def}
-              toggled={toggles[def.id]}
-              status={layerStatus}
-              telemetry={telemetry}
-              onToggle={handleToggle}
-            />
-          ))}
-        </div>
-
-        <div className="hud-footer">
-          <div className="hud-divider" />
-          <div className="hud-clock">
-            <span>{utc}</span>
-          </div>
-          <PhaseIIRoot viewer={viewerState} toggles={toggles} />
-        </div>
-      </aside>
+      {/* HUD Overlay — Now completely managed by Top Nav Drawers */}
+      <PhaseIIRoot
+        viewer={viewerState}
+        toggles={toggles}
+        handleToggle={handleToggle}
+        layerStatus={layerStatus}
+        telemetry={telemetry}
+        utc={utc}
+      />
     </div>
   )
 }
