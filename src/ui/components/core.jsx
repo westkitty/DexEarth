@@ -7,13 +7,8 @@ export { UI_TOKENS }
 export function Panel({ children, style = {} }) {
     return (
         <div style={{
-            background: UI_TOKENS.glassBg,
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: UI_TOKENS.glassBorder,
             borderRadius: '4px',
             marginBottom: '8px',
-            overflow: 'hidden',
             ...style
         }}>
             {children}

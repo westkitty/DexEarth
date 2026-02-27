@@ -233,7 +233,7 @@ export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus
         return (
             <label key={def.id} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '8px 12px', marginBottom: '4px', background: 'rgba(0,0,0,0.4)',
+                padding: '8px 12px', marginBottom: '4px', background: 'transparent',
                 borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)',
                 cursor: 'pointer', pointerEvents: 'auto'
             }}>

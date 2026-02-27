@@ -70,19 +70,24 @@ export default function AuditLogPanel() {
                                 No events found.
                             </div>
                         ) : (
-                            filtered.map((ev, i) => (
-                                <div key={ev.id || i} style={{
-                                    padding: '4px', borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                    fontSize: '9px', fontFamily: UI_TOKENS.font, display: 'flex', flexDirection: 'column', gap: '2px'
-                                }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <span style={{ color: UI_TOKENS.textMuted }}>{new Date(ev.timeMs).toLocaleTimeString()}</span>
-                                        <StatusBadge status={getStatusColor(ev.category)} text={ev.category} />
+                            filtered.map((ev, i) => {
+                                const statusColor = getStatusColor(ev.category)
+                                return (
+                                    <div key={ev.id || i} style={{
+                                        padding: '6px', marginBottom: '4px', borderRadius: '4px',
+                                        background: 'transparent',
+                                        borderLeft: `2px solid ${statusColor === 'neutral' ? '#555' : UI_TOKENS[`text${statusColor.charAt(0).toUpperCase() + statusColor.slice(1)}`]}`,
+                                        display: 'flex', flexDirection: 'column', gap: '4px'
+                                    }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: UI_TOKENS.textMuted }}>{new Date(ev.timeMs).toLocaleTimeString()}</span>
+                                            <StatusBadge status={statusColor} text={ev.category} />
+                                        </div>
+                                        <div style={{ color: UI_TOKENS.textPrimary, fontWeight: 'bold' }}>{ev.event}</div>
+                                        <div style={{ color: UI_TOKENS.textSecondary, overflowWrap: 'break-word' }}>{ev.detail}</div>
                                     </div>
-                                    <div style={{ color: UI_TOKENS.textPrimary, fontWeight: 'bold' }}>{ev.event}</div>
-                                    <div style={{ color: UI_TOKENS.textSecondary, overflowWrap: 'break-word' }}>{ev.detail}</div>
-                                </div>
-                            ))
+                                )
+                            })
                         )}
                     </div>
 
@@ -92,7 +97,7 @@ export default function AuditLogPanel() {
                         <Button onClick={handleCopy}>{copied ? 'COPIED!' : 'EXPORT JSON'}</Button>
                     </div>
                 </CollapsibleSection>
-            </div>
-        </Panel>
+            </div >
+        </Panel >
     )
 }
