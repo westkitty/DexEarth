@@ -24,51 +24,58 @@ export default function HelpPanel() {
     }, [])
 
     return (
-        <Panel>
-            <CollapsibleSection title="ℹ️ Operator Manual" color="#AAAAAA" defaultOpen={false}>
-                {loading ? (
-                    <div style={{ color: UI_TOKENS.textMuted, fontSize: '11px', fontStyle: 'italic' }}>
-                        Loading manual...
-                    </div>
-                ) : helpData.length === 0 ? (
-                    <div style={{ color: UI_TOKENS.textMuted, fontSize: '11px' }}>
-                        Manual unavailable offline.
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {helpData.map((sec, i) => (
-                            <div key={sec.id || i} style={{
-                                background: 'rgba(255,255,255,0.03)',
-                                border: '1px solid rgba(255,255,255,0.05)',
-                                borderRadius: '4px',
-                                padding: '6px 8px'
-                            }}>
-                                <div style={{
-                                    color: UI_TOKENS.primary,
-                                    fontSize: '11px',
-                                    fontWeight: 'bold',
-                                    marginBottom: '4px',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.05em'
+        <Panel style={{ position: 'relative' }}>
+            <img
+                src="/assets/DexEarth_icon_help.png"
+                style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.3, pointerEvents: 'none', width: '200px', height: '200px', objectFit: 'contain', zIndex: 0 }}
+                alt=""
+            />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+                <CollapsibleSection title="ℹ️ Operator Manual" color="#AAAAAA" defaultOpen={false}>
+                    {loading ? (
+                        <div style={{ color: UI_TOKENS.textMuted, fontSize: '11px', fontStyle: 'italic' }}>
+                            Loading manual...
+                        </div>
+                    ) : helpData.length === 0 ? (
+                        <div style={{ color: UI_TOKENS.textMuted, fontSize: '11px' }}>
+                            Manual unavailable offline.
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {helpData.map((sec, i) => (
+                                <div key={sec.id || i} style={{
+                                    background: 'rgba(255,255,255,0.03)',
+                                    border: '1px solid rgba(255,255,255,0.05)',
+                                    borderRadius: '4px',
+                                    padding: '6px 8px'
                                 }}>
-                                    {sec.title}
+                                    <div style={{
+                                        color: UI_TOKENS.primary,
+                                        fontSize: '11px',
+                                        fontWeight: 'bold',
+                                        marginBottom: '4px',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em'
+                                    }}>
+                                        {sec.title}
+                                    </div>
+                                    <div style={{
+                                        color: UI_TOKENS.textSecondary,
+                                        fontSize: '11px',
+                                        lineHeight: '1.4',
+                                        whiteSpace: 'pre-wrap'
+                                    }}>
+                                        {sec.content}
+                                    </div>
                                 </div>
-                                <div style={{
-                                    color: UI_TOKENS.textSecondary,
-                                    fontSize: '11px',
-                                    lineHeight: '1.4',
-                                    whiteSpace: 'pre-wrap'
-                                }}>
-                                    {sec.content}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </CollapsibleSection>
+                            ))}
+                        </div>
+                    )}
+                </CollapsibleSection>
 
-            <div style={{ marginTop: '8px' }}>
-                <DiagnosticsPanel />
+                <div style={{ marginTop: '8px' }}>
+                    <DiagnosticsPanel />
+                </div>
             </div>
         </Panel>
     )

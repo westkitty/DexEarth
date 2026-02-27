@@ -68,76 +68,83 @@ export default function DatasetManagerPanel() {
     }
 
     return (
-        <Panel>
-            <CollapsibleSection title="📦 Dataset Manager" defaultOpen={false}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {datasets.map(ds => {
-                        const status = state[ds.id]
-                        const isPinned = status && status.pinned
-                        const isExpired = status && status.expiresAt !== Infinity && status.expiresAt < now
-                        const source = status ? status.source : 'none'
+        <Panel style={{ position: 'relative' }}>
+            <img
+                src="/assets/DexEarth_icon_datasets.png"
+                style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.3, pointerEvents: 'none', width: '200px', height: '200px', objectFit: 'contain', zIndex: 0 }}
+                alt=""
+            />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+                <CollapsibleSection title="📦 Dataset Manager" defaultOpen={false}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {datasets.map(ds => {
+                            const status = state[ds.id]
+                            const isPinned = status && status.pinned
+                            const isExpired = status && status.expiresAt !== Infinity && status.expiresAt < now
+                            const source = status ? status.source : 'none'
 
-                        let badgeType = 'neutral'
-                        if (isPinned || source === 'bundled') badgeType = 'success'
-                        else if (isExpired) badgeType = 'error'
-                        else if (source !== 'none') badgeType = 'success'
+                            let badgeType = 'neutral'
+                            if (isPinned || source === 'bundled') badgeType = 'success'
+                            else if (isExpired) badgeType = 'error'
+                            else if (source !== 'none') badgeType = 'success'
 
-                        return (
-                            <div key={ds.id} style={{
-                                border: UI_TOKENS.glassBorder, padding: '6px', borderRadius: '4px',
-                                background: 'rgba(0,0,0,0.2)'
-                            }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                    <span style={{ fontSize: '11px', color: UI_TOKENS.textPrimary, fontWeight: 'bold' }}>
-                                        {ds.name}
-                                    </span>
-                                    <StatusBadge
-                                        status={badgeType}
-                                        text={source === 'none' ? 'MISSING' : (isPinned ? 'PINNED' : source.toUpperCase() + (isExpired ? ' (EXP)' : ''))}
-                                    />
-                                </div>
-
-                                <div style={{ fontSize: '9px', color: UI_TOKENS.textSecondary, marginBottom: '6px' }}>
-                                    Size: {ds.sizeEstimate} • Impact on Safe Mode: {ds.safeModeImpact}
-                                    <br />
-                                    {status && !isPinned ? `Last fetched: ${lastFetched(status.fetchedAt)}` : null}
-                                </div>
-
-                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                                    <Button
-                                        variant={isPinned ? "warning" : "default"}
-                                        onClick={() => handlePin(ds.id, isPinned)}
-                                        disabled={!status && !ds.bundledUrl}
-                                    >
-                                        {isPinned ? 'UNPIN' : 'PIN TO CACHE'}
-                                    </Button>
-
-                                    {status && !status.pinned && (
-                                        <Button variant="danger" onClick={() => handleClear(ds.id)}>CLEAR</Button>
-                                    )}
-
-                                    <label style={{ cursor: 'pointer', display: 'inline-block' }}>
-                                        <div style={{
-                                            background: 'rgba(0,0,0,0.3)', border: `1px solid rgba(0,255,159,0.4)`,
-                                            color: '#00FF9F', padding: '4px 8px', borderRadius: '3px',
-                                            fontFamily: UI_TOKENS.font, fontSize: '10px',
-                                            transition: 'all 150ms ease',
-                                        }}>
-                                            IMPORT CUSTOM
-                                        </div>
-                                        <input
-                                            type="file"
-                                            accept={ds.format === 'geojson' ? '.json,.geojson' : '*/*'}
-                                            style={{ display: 'none' }}
-                                            onChange={(e) => handleImportFile(e, ds.id)}
+                            return (
+                                <div key={ds.id} style={{
+                                    border: UI_TOKENS.glassBorder, padding: '6px', borderRadius: '4px',
+                                    background: 'rgba(0,0,0,0.2)'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                        <span style={{ fontSize: '11px', color: UI_TOKENS.textPrimary, fontWeight: 'bold' }}>
+                                            {ds.name}
+                                        </span>
+                                        <StatusBadge
+                                            status={badgeType}
+                                            text={source === 'none' ? 'MISSING' : (isPinned ? 'PINNED' : source.toUpperCase() + (isExpired ? ' (EXP)' : ''))}
                                         />
-                                    </label>
+                                    </div>
+
+                                    <div style={{ fontSize: '9px', color: UI_TOKENS.textSecondary, marginBottom: '6px' }}>
+                                        Size: {ds.sizeEstimate} • Impact on Safe Mode: {ds.safeModeImpact}
+                                        <br />
+                                        {status && !isPinned ? `Last fetched: ${lastFetched(status.fetchedAt)}` : null}
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                        <Button
+                                            variant={isPinned ? "warning" : "default"}
+                                            onClick={() => handlePin(ds.id, isPinned)}
+                                            disabled={!status && !ds.bundledUrl}
+                                        >
+                                            {isPinned ? 'UNPIN' : 'PIN TO CACHE'}
+                                        </Button>
+
+                                        {status && !status.pinned && (
+                                            <Button variant="danger" onClick={() => handleClear(ds.id)}>CLEAR</Button>
+                                        )}
+
+                                        <label style={{ cursor: 'pointer', display: 'inline-block' }}>
+                                            <div style={{
+                                                background: 'rgba(0,0,0,0.3)', border: `1px solid rgba(0,255,159,0.4)`,
+                                                color: '#00FF9F', padding: '4px 8px', borderRadius: '3px',
+                                                fontFamily: UI_TOKENS.font, fontSize: '10px',
+                                                transition: 'all 150ms ease',
+                                            }}>
+                                                IMPORT CUSTOM
+                                            </div>
+                                            <input
+                                                type="file"
+                                                accept={ds.format === 'geojson' ? '.json,.geojson' : '*/*'}
+                                                style={{ display: 'none' }}
+                                                onChange={(e) => handleImportFile(e, ds.id)}
+                                            />
+                                        </label>
+                                    </div>
                                 </div>
-                            </div>
-                        )
-                    })}
-                </div>
-            </CollapsibleSection>
+                            )
+                        })}
+                    </div>
+                </CollapsibleSection>
+            </div>
         </Panel>
     )
 }

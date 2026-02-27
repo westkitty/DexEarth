@@ -37,60 +37,67 @@ export default function AuditLogPanel() {
     }
 
     return (
-        <Panel>
-            <CollapsibleSection title="📄 Audit Log" defaultOpen={true}>
-                {/* Filters */}
-                <div style={{ display: 'flex', gap: '4px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                    {filters.map(f => (
-                        <button
-                            key={f.id}
-                            onClick={() => setFilter(f.id)}
-                            style={{
-                                background: filter === f.id ? 'rgba(0, 255, 159, 0.2)' : 'transparent',
-                                border: `1px solid ${filter === f.id ? '#00FF9F' : 'rgba(0, 255, 159, 0.2)'}`,
-                                color: filter === f.id ? '#00FF9F' : UI_TOKENS.textSecondary,
-                                fontSize: '9px', fontFamily: UI_TOKENS.font, padding: '2px 6px',
-                                borderRadius: '2px', cursor: 'pointer'
-                            }}
-                        >
-                            {f.label}
-                        </button>
-                    ))}
-                </div>
+        <Panel style={{ position: 'relative' }}>
+            <img
+                src="/assets/DexEarth_icon_logs.png"
+                style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.3, pointerEvents: 'none', width: '200px', height: '200px', objectFit: 'contain', zIndex: 0 }}
+                alt=""
+            />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+                <CollapsibleSection title="📄 Audit Log" defaultOpen={true}>
+                    {/* Filters */}
+                    <div style={{ display: 'flex', gap: '4px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                        {filters.map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => setFilter(f.id)}
+                                style={{
+                                    background: filter === f.id ? 'rgba(0, 255, 159, 0.2)' : 'transparent',
+                                    border: `1px solid ${filter === f.id ? '#00FF9F' : 'rgba(0, 255, 159, 0.2)'}`,
+                                    color: filter === f.id ? '#00FF9F' : UI_TOKENS.textSecondary,
+                                    fontSize: '9px', fontFamily: UI_TOKENS.font, padding: '2px 6px',
+                                    borderRadius: '2px', cursor: 'pointer'
+                                }}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
 
-                {/* Event List */}
-                <div style={{
-                    maxHeight: '200px', overflowY: 'auto', border: UI_TOKENS.glassBorder,
-                    background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '3px',
-                    marginBottom: '8px'
-                }}>
-                    {filtered.length === 0 ? (
-                        <div style={{ color: UI_TOKENS.textMuted, fontSize: '10px', padding: '4px', textAlign: 'center' }}>
-                            No events found.
-                        </div>
-                    ) : (
-                        filtered.map((ev, i) => (
-                            <div key={ev.id || i} style={{
-                                padding: '4px', borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                fontSize: '9px', fontFamily: UI_TOKENS.font, display: 'flex', flexDirection: 'column', gap: '2px'
-                            }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: UI_TOKENS.textMuted }}>{new Date(ev.timeMs).toLocaleTimeString()}</span>
-                                    <StatusBadge status={getStatusColor(ev.category)} text={ev.category} />
-                                </div>
-                                <div style={{ color: UI_TOKENS.textPrimary, fontWeight: 'bold' }}>{ev.event}</div>
-                                <div style={{ color: UI_TOKENS.textSecondary, overflowWrap: 'break-word' }}>{ev.detail}</div>
+                    {/* Event List */}
+                    <div style={{
+                        maxHeight: '200px', overflowY: 'auto', border: UI_TOKENS.glassBorder,
+                        background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '3px',
+                        marginBottom: '8px'
+                    }}>
+                        {filtered.length === 0 ? (
+                            <div style={{ color: UI_TOKENS.textMuted, fontSize: '10px', padding: '4px', textAlign: 'center' }}>
+                                No events found.
                             </div>
-                        ))
-                    )}
-                </div>
+                        ) : (
+                            filtered.map((ev, i) => (
+                                <div key={ev.id || i} style={{
+                                    padding: '4px', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                    fontSize: '9px', fontFamily: UI_TOKENS.font, display: 'flex', flexDirection: 'column', gap: '2px'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ color: UI_TOKENS.textMuted }}>{new Date(ev.timeMs).toLocaleTimeString()}</span>
+                                        <StatusBadge status={getStatusColor(ev.category)} text={ev.category} />
+                                    </div>
+                                    <div style={{ color: UI_TOKENS.textPrimary, fontWeight: 'bold' }}>{ev.event}</div>
+                                    <div style={{ color: UI_TOKENS.textSecondary, overflowWrap: 'break-word' }}>{ev.detail}</div>
+                                </div>
+                            ))
+                        )}
+                    </div>
 
-                {/* Controls */}
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Button onClick={clearAuditHistory} variant="danger">CLEAR LOGS</Button>
-                    <Button onClick={handleCopy}>{copied ? 'COPIED!' : 'EXPORT JSON'}</Button>
-                </div>
-            </CollapsibleSection>
+                    {/* Controls */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Button onClick={clearAuditHistory} variant="danger">CLEAR LOGS</Button>
+                        <Button onClick={handleCopy}>{copied ? 'COPIED!' : 'EXPORT JSON'}</Button>
+                    </div>
+                </CollapsibleSection>
+            </div>
         </Panel>
     )
 }

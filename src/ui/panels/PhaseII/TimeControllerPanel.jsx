@@ -142,8 +142,13 @@ export default function TimeControllerPanel({ viewer }) {
     }
 
     return (
-        <div style={STYLE.panel}>
-            <div style={{ ...STYLE.label, fontWeight: 'bold', marginBottom: '6px' }}>⏱ TIME CONTROLLER</div>
+        <div style={{ ...STYLE.panel, position: 'relative' }}>
+            <img
+                src="/assets/DexEarth_icon_time.png"
+                style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.3, pointerEvents: 'none', width: '200px', height: '200px', objectFit: 'contain', zIndex: 0 }}
+                alt=""
+            />
+            <div style={{ ...STYLE.label, fontWeight: 'bold', marginBottom: '6px', position: 'relative', zIndex: 1 }}>⏱ TIME CONTROLLER</div>
 
             {/* UTC Display */}
             <div style={{ ...STYLE.row, flexDirection: 'column', alignItems: 'flex-start', gap: '2px', marginBottom: '6px' }}>

@@ -62,8 +62,13 @@ export default function SatellitesPanel({ viewer }) {
     }, [])
 
     return (
-        <div style={S.panel}>
-            <div style={{ ...S.label, fontWeight: 'bold', marginBottom: '6px' }}>🛰 SATELLITES</div>
+        <div style={{ ...S.panel, position: 'relative' }}>
+            <img
+                src="/assets/DexEarth_icon_satellites.png"
+                style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.3, pointerEvents: 'none', width: '200px', height: '200px', objectFit: 'contain', zIndex: 0 }}
+                alt=""
+            />
+            <div style={{ ...S.label, fontWeight: 'bold', marginBottom: '6px', position: 'relative', zIndex: 1 }}>🛰 SATELLITES</div>
 
             <div style={S.row}>
                 <button style={{ ...S.btn, ...(isActive ? { background: '#00CFFF22', border: '1px solid #00CFFF' } : {}) }}
