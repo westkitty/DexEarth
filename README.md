@@ -47,7 +47,11 @@ Zero-cost, offline-capable, non-breaking addition to Phase I/II.
 **Bundled data** (Natural Earth, public domain):
 - `public/data/borders/ne_110m_admin_0_countries.geojson`
 - `public/data/borders/ne_50m_admin_0_countries.geojson`
+- `public/data/borders/ne_110m_admin_1_states_provinces.geojson`
+- `public/data/borders/ne_50m_admin_1_states_provinces.geojson`
 - `public/data/borders/country_index.json` (pre-computed — run `node scripts/generate_country_index.js` to regenerate)
+
+Includes Dynamic Level of Detail (LOD): smoothly seamlessly injects state and provincial boundaries (Admin-1) into the map when the camera zooms below 1,500km altitude, dynamically scaling font sizes and boundary widths to avoid clutter.
 
 ### Render Style Presets (🎨 Render Style panel)
 

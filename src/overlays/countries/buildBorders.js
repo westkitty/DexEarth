@@ -40,27 +40,33 @@ export function buildBorderCollection(features, style = {}) {
     const col = new Cesium.PolylineCollection()
 
     for (const feature of features) {
+        const isState = feature.properties?.feature_type === 'state'
         const rings = extractExteriorRings(feature.geometry)
         for (const ring of rings) {
             if (ring.length < 2) continue
             const positions = ringToPositions(ring)
             if (positions.length < 2) continue
 
+            // Fade and thin out state borders
+            const activeAlpha = isState ? s.alpha * 0.4 : s.alpha
+            const activeWidth = isState ? s.width * 0.5 : s.width
+            const activeColor = Cesium.Color.fromCssColorString(s.color).withAlpha(activeAlpha)
+
             let material
             if (s.glow) {
                 material = Cesium.Material.fromType('PolylineGlow', {
                     glowPower: 0.15,
-                    color,
+                    color: activeColor,
                 })
             } else {
-                material = Cesium.Material.fromType('Color', { color })
+                material = Cesium.Material.fromType('Color', { color: activeColor })
             }
 
             col.add({
                 positions,
-                width: s.width,
+                width: activeWidth,
                 material,
-                id: { type: 'border', name: feature.properties?.NAME || feature.properties?.ADMIN || '' },
+                id: { type: 'border', name: feature.properties?.NAME || feature.properties?.ADMIN || feature.properties?.name || '' },
             })
         }
     }

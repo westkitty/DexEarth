@@ -62,23 +62,36 @@ export function buildLabelCollection({ features, viewer, altM, maxLabels = 200, 
     const accepted = []
     let rendered = 0
 
-    // Sort features by size (approx ring length) descending to prioritize large countries
-    const sortedFeatures = [...features].sort((a, b) => {
+    // Separate features by type to prioritize drawing countries first
+    let sortedFeatures = [...features]
+    sortedFeatures.sort((a, b) => {
+        // Evaluate type priority (countries first)
+        const typeA = a.properties?.feature_type === 'state' ? 1 : 0
+        const typeB = b.properties?.feature_type === 'state' ? 1 : 0
+        if (typeA !== typeB) return typeA - typeB
+
+        // Fallback to size filtering
         const lenA = a.geometry?.coordinates?.[0]?.length || a.geometry?.coordinates?.[0]?.[0]?.length || 0
         const lenB = b.geometry?.coordinates?.[0]?.length || b.geometry?.coordinates?.[0]?.[0]?.length || 0
         return lenB - lenA
     })
 
+    // sortedFeatures array is already built and sorted by type/size above.
     for (const feature of sortedFeatures) {
         if (rendered >= maxLabels) break
         const p = feature.properties || {}
-        const name = p.NAME || p.ADMIN || ''
+        // Admin-0 uses NAME/ADMIN. Admin-1 uses name.
+        const name = p.NAME || p.ADMIN || p.name || ''
+        const isState = p.feature_type === 'state'
+
         if (!name) continue
 
-        // LOD filter: skip tiny countries at high zoom
+        // LOD filter: skip tiny countries at high zoom. 
+        // States should only be filtered extremely loosely, we want them visible when zoomed in.
         const pointCount = feature.geometry?.coordinates?.[0]?.length
             || feature.geometry?.coordinates?.[0]?.[0]?.length || 0
-        if (pointCount < minRingLen && name !== highlight) continue
+        const effectiveMinLen = isState ? 0 : minRingLen
+        if (pointCount < effectiveMinLen && name !== highlight) continue
 
         const rp = computeRepPoint(feature)
         if (!rp) continue
@@ -104,18 +117,31 @@ export function buildLabelCollection({ features, viewer, altM, maxLabels = 200, 
         }
 
         const isHighlightedCountry = name === highlight
+
+        // Style variables per level
+        const baseFs = isState ? fs - 2 : fs
+        const finalFs = isHighlightedCountry ? baseFs + 2 : baseFs
+
+        let scalar
+        if (isState) {
+            // States should fade out quicker as you zoom out compared to countries
+            scalar = new Cesium.NearFarScalar(100_000, 1.0, 3_000_000, 0.0)
+        } else {
+            scalar = new Cesium.NearFarScalar(100_000, 1.0, 20_000_000, 0.0)
+        }
+
         col.add({
             position: Cesium.Cartesian3.fromDegrees(rp[0], rp[1], 600),
             text: name,
-            font: `${isHighlightedCountry ? fs + 2 : fs}px 'JetBrains Mono', monospace`,
-            fillColor: isHighlightedCountry ? Cesium.Color.YELLOW : fillColor,
+            font: `${finalFs}px 'JetBrains Mono', monospace`,
+            fillColor: isHighlightedCountry ? Cesium.Color.YELLOW : (isState ? Cesium.Color.fromCssColorString('#CCCCCC') : fillColor),
             outlineColor: outColor,
             outlineWidth: s.outlineWidth,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
             horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
             verticalOrigin: Cesium.VerticalOrigin.CENTER,
-            scaleByDistance: new Cesium.NearFarScalar(500_000, 1.1, 15_000_000, 0.5),
-            translucencyByDistance: new Cesium.NearFarScalar(100_000, 1.0, 20_000_000, 0.0),
+            scaleByDistance: new Cesium.NearFarScalar(500_000, 1.1, 15_000_000, 0.7),
+            translucencyByDistance: scalar,
             id: { type: 'label', name },
         })
         rendered++
