@@ -28,11 +28,6 @@ export default function PerformancePanel() {
 
     return (
         <Panel style={{ position: 'relative' }}>
-            <img
-                src="/assets/DexEarth_icon_performance.png"
-                style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.3, pointerEvents: 'none', width: '200px', height: '200px', objectFit: 'contain', zIndex: 0 }}
-                alt=""
-            />
             <div style={{ position: 'relative', zIndex: 1 }}>
                 <CollapsibleSection title="📊 Performance" defaultOpen={false}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>

@@ -397,10 +397,22 @@ export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus
                             transition: 'all 150ms ease',
                             transformOrigin: dropsDown ? 'top center' : 'bottom center'
                         }}>
-                            {/* Static Watermark Background (Only for Data Layers) */}
-                            {activeSection.id === 'data' && (
+                            {/* Static Watermark Background (Rendered centrally for consistent alignment) */}
+                            {activeSection && (
                                 <img
-                                    src="/DexEarthLogo.png"
+                                    src={{
+                                        data: '/DexEarthLogo.png',
+                                        time: '/assets/DexEarth_icon_time.png',
+                                        satellites: '/assets/DexEarth_icon_satellites.png',
+                                        seismic: '/assets/DexEarth_icon_seismic.png',
+                                        views: '/assets/DexEarth_icon_views.png',
+                                        threat: '/assets/DexEarth_icon_threat.png',
+                                        perf: '/assets/DexEarth_icon_performance.png',
+                                        datasets: '/assets/DexEarth_icon_datasets.png',
+                                        audit: '/assets/DexEarth_icon_logs.png',
+                                        help: '/assets/DexEarth_icon_help.png',
+                                        visuals: '/assets/DexEarth_icon_visuals.png'
+                                    }[activeSection.id] || '/DexEarthLogo.png'}
                                     alt=""
                                     style={{
                                         position: 'absolute',
@@ -413,7 +425,7 @@ export default function PhaseIIRoot({ viewer, toggles, handleToggle, layerStatus
                                         opacity: 0.3,
                                         pointerEvents: 'none',
                                         zIndex: 0,
-                                        mixBlendMode: 'screen',
+                                        mixBlendMode: activeSection.id === 'data' ? 'screen' : 'normal',
                                     }}
                                 />
                             )}
