@@ -17,10 +17,25 @@ export function parseTLEs(rawText) {
     const name = lines[i]
     const line1 = lines[i + 1]
     const line2 = lines[i + 2]
-    if (line1.startsWith('1 ') && line2.startsWith('2 ')) {
+    if (
+      line1.startsWith('1 ') &&
+      line2.startsWith('2 ') &&
+      line1.length >= 60 &&
+      line2.length >= 60 &&
+      line1.slice(2, 7) === line2.slice(2, 7)
+    ) {
       try {
         const satrec = satellite.twoline2satrec(line1, line2)
-        records.push({ name, satrec })
+        if (
+          satrec.error === 0 &&
+          Number.isFinite(satrec.no) &&
+          satrec.no > 0 &&
+          Number.isFinite(satrec.jdsatepoch) &&
+          Number.isFinite(satrec.inclo) &&
+          satrec.ecco >= 0 &&
+          satrec.ecco < 1
+        )
+          records.push({ name, line1, line2, satrec })
         i += 2
       } catch {
         /* skip invalid */

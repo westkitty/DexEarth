@@ -12,26 +12,30 @@ const _registry = new Map()
  * @param {object} meta - { name, category, hasGeometry, defaultEnabled, perfCost }
  */
 export function registerLayer(id, layer, meta = {}) {
-    _registry.set(id, { id, layer, meta, active: false, status: 'idle', degradation: null })
+  _registry.set(id, { id, layer, meta, active: false, status: 'idle', degradation: null })
 }
 
-export function getLayer(id) { return _registry.get(id) }
+export function getLayer(id) {
+  return _registry.get(id)
+}
 
-export function getAllLayers() { return [..._registry.values()] }
+export function getAllLayers() {
+  return [..._registry.values()]
+}
 
 export function isActive(id) {
-    const reg = _registry.get(id)
-    return reg ? reg.active : false
+  const reg = _registry.get(id)
+  return reg ? reg.active : false
 }
 
 export function getStatus(id) {
-    const reg = _registry.get(id)
-    return reg ? reg.status : 'idle'
+  const reg = _registry.get(id)
+  return reg ? reg.status : 'idle'
 }
 
 export function setStatus(id, status) {
-    const reg = _registry.get(id)
-    if (reg) reg.status = status
+  const reg = _registry.get(id)
+  if (reg) reg.status = status
 }
 
 /**
@@ -40,30 +44,30 @@ export function setStatus(id, status) {
  * @param {object} ctx - { viewer, getTimeMs, storage, settings }
  */
 export async function activateRegisteredLayer(id, ctx) {
-    const reg = _registry.get(id)
-    if (!reg || reg.active) return
-    reg.status = 'loading'
-    try {
-        await reg.layer.activate(ctx)
-        reg.active = true
-        reg.status = 'active'
-    } catch (err) {
-        console.error(`[LayerRegistry] Failed to activate ${id}:`, err)
-        reg.status = 'error'
-    }
+  const reg = _registry.get(id)
+  if (!reg || reg.active) return
+  reg.status = 'loading'
+  try {
+    await reg.layer.activate(ctx)
+    reg.active = true
+    reg.status = 'active'
+  } catch (err) {
+    console.error(`[LayerRegistry] Failed to activate ${id}:`, err)
+    reg.status = 'error'
+  }
 }
 
 export async function deactivateRegisteredLayer(id) {
-    const reg = _registry.get(id)
-    if (!reg || !reg.active) return
-    try {
-        await reg.layer.deactivate()
-    } catch (err) {
-        console.warn(`[LayerRegistry] Error deactivating ${id}:`, err)
-    }
-    reg.active = false
-    reg.status = 'idle'
-    reg.degradation = null
+  const reg = _registry.get(id)
+  if (!reg || !reg.active) return
+  try {
+    await reg.layer.deactivate()
+  } catch (err) {
+    console.warn(`[LayerRegistry] Error deactivating ${id}:`, err)
+  }
+  reg.active = false
+  reg.status = 'idle'
+  reg.degradation = null
 }
 
 /**
@@ -72,11 +76,15 @@ export async function deactivateRegisteredLayer(id) {
  * @param {number} dtMs
  */
 export function tickAllLayers(timeMs, dtMs) {
-    for (const reg of _registry.values()) {
-        if (reg.active && typeof reg.layer.tick === 'function') {
-            try { reg.layer.tick({ timeMs, dtMs }) } catch { /* layer tick error */ }
-        }
+  for (const reg of _registry.values()) {
+    if (reg.active && typeof reg.layer.tick === 'function') {
+      try {
+        reg.layer.tick({ timeMs, dtMs })
+      } catch {
+        /* layer tick error */
+      }
     }
+  }
 }
 
 /**
@@ -85,13 +93,13 @@ export function tickAllLayers(timeMs, dtMs) {
  * @param {object|null} profile - null to clear degradation
  */
 export function applyDegradation(id, profile) {
-    const reg = _registry.get(id)
-    if (!reg) return
-    reg.degradation = profile
-    if (reg.active && typeof reg.layer.applyDegradation === 'function') {
-        reg.layer.applyDegradation(profile)
-    }
-    reg.status = profile ? 'degraded' : (reg.active ? 'active' : 'idle')
+  const reg = _registry.get(id)
+  if (!reg) return
+  reg.degradation = profile
+  if (reg.active && typeof reg.layer.applyDegradation === 'function') {
+    reg.layer.applyDegradation(profile)
+  }
+  reg.status = profile ? 'degraded' : reg.active ? 'active' : 'idle'
 }
 
 /**
@@ -100,10 +108,14 @@ export function applyDegradation(id, profile) {
  * @returns {{ points?: Array, lines?: Array } | null}
  */
 export function getGeometrySnapshot(id) {
-    const reg = _registry.get(id)
-    if (!reg || !reg.active) return null
-    if (typeof reg.layer.getGeometrySnapshot === 'function') {
-        try { return reg.layer.getGeometrySnapshot() } catch { return null }
+  const reg = _registry.get(id)
+  if (!reg || !reg.active) return null
+  if (typeof reg.layer.getGeometrySnapshot === 'function') {
+    try {
+      return reg.layer.getGeometrySnapshot()
+    } catch {
+      return null
     }
-    return null
+  }
+  return null
 }

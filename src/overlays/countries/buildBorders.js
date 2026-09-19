@@ -4,10 +4,10 @@
 import * as Cesium from 'cesium'
 
 const DEFAULT_STYLE = {
-    color: '#00FFCC',
-    alpha: 0.55,
-    width: 1.2,
-    glow: false,
+  color: '#00FFCC',
+  alpha: 0.55,
+  width: 1.2,
+  glow: false,
 }
 
 /**
@@ -15,17 +15,17 @@ const DEFAULT_STYLE = {
  * Skips holes by default. Optionally wraps antimeridian splits.
  */
 function extractExteriorRings(geometry) {
-    if (!geometry) return []
-    if (geometry.type === 'Polygon') return [geometry.coordinates[0]]
-    if (geometry.type === 'MultiPolygon') return geometry.coordinates.map(p => p[0])
-    return []
+  if (!geometry) return []
+  if (geometry.type === 'Polygon') return [geometry.coordinates[0]]
+  if (geometry.type === 'MultiPolygon') return geometry.coordinates.map(p => p[0])
+  return []
 }
 
 /**
  * Build Cesium Cartesian3 positions from a ring, clamped slightly above surface.
  */
 function ringToPositions(ring, altitude = 150) {
-    return ring.map(([lon, lat]) => Cesium.Cartesian3.fromDegrees(lon, lat, altitude))
+  return ring.map(([lon, lat]) => Cesium.Cartesian3.fromDegrees(lon, lat, altitude))
 }
 
 /**
@@ -35,42 +35,46 @@ function ringToPositions(ring, altitude = 150) {
  * @returns {Cesium.PolylineCollection}
  */
 export function buildBorderCollection(features, style = {}) {
-    const s = { ...DEFAULT_STYLE, ...style }
-    const color = Cesium.Color.fromCssColorString(s.color).withAlpha(s.alpha)
-    const col = new Cesium.PolylineCollection()
+  const s = { ...DEFAULT_STYLE, ...style }
+  const _color = Cesium.Color.fromCssColorString(s.color).withAlpha(s.alpha)
+  const col = new Cesium.PolylineCollection()
 
-    for (const feature of features) {
-        const isState = feature.properties?.feature_type === 'state'
-        const rings = extractExteriorRings(feature.geometry)
-        for (const ring of rings) {
-            if (ring.length < 2) continue
-            const positions = ringToPositions(ring)
-            if (positions.length < 2) continue
+  for (const feature of features) {
+    const isState = feature.properties?.feature_type === 'state'
+    const rings = extractExteriorRings(feature.geometry)
+    for (const ring of rings) {
+      if (ring.length < 2) continue
+      const positions = ringToPositions(ring)
+      if (positions.length < 2) continue
 
-            // Fade and thin out state borders
-            const activeAlpha = isState ? s.alpha * 0.4 : s.alpha
-            const activeWidth = isState ? s.width * 0.5 : s.width
-            const activeColor = Cesium.Color.fromCssColorString(s.color).withAlpha(activeAlpha)
+      // Fade and thin out state borders
+      const activeAlpha = isState ? s.alpha * 0.4 : s.alpha
+      const activeWidth = isState ? s.width * 0.5 : s.width
+      const activeColor = Cesium.Color.fromCssColorString(s.color).withAlpha(activeAlpha)
 
-            let material
-            if (s.glow) {
-                material = Cesium.Material.fromType('PolylineGlow', {
-                    glowPower: 0.15,
-                    color: activeColor,
-                })
-            } else {
-                material = Cesium.Material.fromType('Color', { color: activeColor })
-            }
+      let material
+      if (s.glow) {
+        material = Cesium.Material.fromType('PolylineGlow', {
+          glowPower: 0.15,
+          color: activeColor,
+        })
+      } else {
+        material = Cesium.Material.fromType('Color', { color: activeColor })
+      }
 
-            col.add({
-                positions,
-                width: activeWidth,
-                material,
-                id: { type: 'border', name: feature.properties?.NAME || feature.properties?.ADMIN || feature.properties?.name || '' },
-            })
-        }
+      col.add({
+        positions,
+        width: activeWidth,
+        material,
+        id: {
+          type: 'border',
+          name:
+            feature.properties?.NAME || feature.properties?.ADMIN || feature.properties?.name || '',
+        },
+      })
     }
-    return col
+  }
+  return col
 }
 
 /**
@@ -78,17 +82,17 @@ export function buildBorderCollection(features, style = {}) {
  * Much cheaper than rebuilding the whole collection.
  */
 export function updateBorderStyle(collection, style = {}) {
-    const s = { ...DEFAULT_STYLE, ...style }
-    const color = Cesium.Color.fromCssColorString(s.color).withAlpha(s.alpha)
-    for (let i = 0; i < collection.length; i++) {
-        const line = collection.get(i)
-        line.width = s.width
-        if (s.glow) {
-            line.material = Cesium.Material.fromType('PolylineGlow', { glowPower: 0.15, color })
-        } else {
-            line.material = Cesium.Material.fromType('Color', { color })
-        }
+  const s = { ...DEFAULT_STYLE, ...style }
+  const color = Cesium.Color.fromCssColorString(s.color).withAlpha(s.alpha)
+  for (let i = 0; i < collection.length; i++) {
+    const line = collection.get(i)
+    line.width = s.width
+    if (s.glow) {
+      line.material = Cesium.Material.fromType('PolylineGlow', { glowPower: 0.15, color })
+    } else {
+      line.material = Cesium.Material.fromType('Color', { color })
     }
+  }
 }
 
 /**
@@ -96,22 +100,22 @@ export function updateBorderStyle(collection, style = {}) {
  * Returns a restore function.
  */
 export function highlightBorder(collection, name, highlightColor = '#FFFF00') {
-    const hColor = Cesium.Color.fromCssColorString(highlightColor).withAlpha(1.0)
-    const restored = []
-    for (let i = 0; i < collection.length; i++) {
-        const line = collection.get(i)
-        if (line.id?.name === name) {
-            const origMat = line.material
-            const origWidth = line.width
-            line.material = Cesium.Material.fromType('Color', { color: hColor })
-            line.width = Math.max(line.width * 2.5, 3)
-            restored.push({ line, origMat, origWidth })
-        }
+  const hColor = Cesium.Color.fromCssColorString(highlightColor).withAlpha(1.0)
+  const restored = []
+  for (let i = 0; i < collection.length; i++) {
+    const line = collection.get(i)
+    if (line.id?.name === name) {
+      const origMat = line.material
+      const origWidth = line.width
+      line.material = Cesium.Material.fromType('Color', { color: hColor })
+      line.width = Math.max(line.width * 2.5, 3)
+      restored.push({ line, origMat, origWidth })
     }
-    return () => {
-        for (const { line, origMat, origWidth } of restored) {
-            line.material = origMat
-            line.width = origWidth
-        }
+  }
+  return () => {
+    for (const { line, origMat, origWidth } of restored) {
+      line.material = origMat
+      line.width = origWidth
     }
+  }
 }

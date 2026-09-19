@@ -13,11 +13,11 @@ All data is bundled. No API keys. No paid services. Fully offline-capable.
 
 ## Country Data
 
-| File | Detail | Size | Use |
-|------|--------|------|-----|
+| File                                                    | Detail        | Size    | Use             |
+| ------------------------------------------------------- | ------------- | ------- | --------------- |
 | `public/data/borders/ne_110m_admin_0_countries.geojson` | 110m (coarse) | ~839 KB | Zoom > 3 000 km |
-| `public/data/borders/ne_50m_admin_0_countries.geojson` | 50m (medium) | ~3.1 MB | Zoom < 3 000 km |
-| `public/data/borders/country_index.json` | Pre-computed | ~40 KB | Search + fly-to |
+| `public/data/borders/ne_50m_admin_0_countries.geojson`  | 50m (medium)  | ~3.1 MB | Zoom < 3 000 km |
+| `public/data/borders/country_index.json`                | Pre-computed  | ~40 KB  | Search + fly-to |
 
 Source: [Natural Earth](https://www.naturalearthdata.com/) — public domain.
 
@@ -46,6 +46,7 @@ src/overlays/countries/
 ### Level-of-detail switching
 
 `loadGeojson.js > detailByAltitude(altMeters)`:
+
 - `> 3 000 000 m` → 110m dataset (coarse)
 - `≤ 3 000 000 m` → 50m dataset (medium)
 
@@ -54,6 +55,7 @@ The GeoJSON is swapped on `camera.moveEnd` with a 300ms debounce.
 ### Representative Point Computation (`repPoint.js`)
 
 For each country:
+
 1. Centroid of the largest exterior ring (shoelace formula)
 2. If centroid is outside the ring → bbox center
 3. If bbox center is also outside → 5×5 grid search inside the bbox
@@ -72,6 +74,7 @@ Runs on `camera.moveEnd`, not every frame. A 300ms debounce prevents rebuild spa
 ### Border-Following Labels (`followBorderLabels.js`, Mode 1)
 
 For each country:
+
 1. Find the longest straight segment in the largest exterior ring
 2. Compute bearing of that segment (returns `[0, 2π)`)
 3. If the bearing would render text upside-down (pointing into left half-circle), rotate by `π`
@@ -113,6 +116,7 @@ applyPreset(id)
 ### Safe Mode
 
 A `requestAnimationFrame` loop averages FPS over 60 frames. If the rolling average drops below 25 FPS:
+
 - All registered `PostProcessStage` objects are removed
 - `activateLite()` is called on the current preset (minimal visual fallback)
 - Label density is reduced (halved internally by LOD thresholds)
@@ -126,6 +130,7 @@ Manual override: user can press the "Safe Mode" button in the Styles panel to fo
 ## UI Location
 
 `VisualsRoot` is mounted at the bottom of `PhaseIIRoot` as a separate section labeled **"PHASE III // VISUALS + OVERLAYS"**. It has two collapsible sub-sections:
+
 - 🌐 **Overlays** → `OverlaysPanel` (borders/labels/follow toggles, density sliders, search)
 - 🎨 **Render Style** → `StylesPanel` (preset buttons, per-preset sliders, FPS readout)
 
@@ -148,3 +153,12 @@ Manual override: user can press the "Safe Mode" button in the Styles panel to fo
 - Follow labels (`BillboardCollection`): capped at 80 by default. Canvas textures cached in memory.
 - PostProcessStages (cel-shade, hologram, nightOps): single full-screen pass each. On low-end hardware, safe mode removes these automatically.
 - Wireframe preset: no PostProcessStage — fastest of all presets.
+
+## Orbital workspace integration
+
+Observation format v1 saves/restores country-overlay visibility and render preset.
+The bundled Natural Earth II base imagery now works without a remote imagery service.
+Orbital paths obey the existing style Safe Mode (past ≤31 samples, no future track).
+See [orbital-observations-replay.md](orbital-observations-replay.md) for offline shell,
+truth-state, storage and replay boundaries. Browser-emulated layouts were checked at
+390×844, 768×1024, 1024×1366 and 1440×1000; no physical GPU performance guarantee is made.

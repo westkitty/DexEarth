@@ -56,10 +56,12 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 5;
-  background: radial-gradient(ellipse at 50% 50%,
-      transparent 52%,
-      rgba(0, 0, 0, 0.6) 75%,
-      rgba(0, 0, 0, 0.92) 100%);
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    transparent 52%,
+    rgba(0, 0, 0, 0.6) 75%,
+    rgba(0, 0, 0, 0.92) 100%
+  );
 }
 
 .vfx-grain {
@@ -110,4 +112,3 @@ body {
 }
 
 /* ─── HUD Sidebar ───────────────────────────────────────────────────────────── */
-

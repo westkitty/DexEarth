@@ -1,0 +1,16 @@
+# Upstream cartographic datasets: preserve vendor geometry and original serialization.
+public/data/borders/
+# Reference research, not application source.
+Assets./
+# Private/local wrapper files are outside this task's formatting scope.
+.env
+.env.*
+PLAY_DEX_EARTH.command
+macos/
+scripts/add_to_dock.py
+scripts/build-app.sh
+# Build output and browser evidence.
+dist/
+node_modules/
+playwright-report/
+test-results/

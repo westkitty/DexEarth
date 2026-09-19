@@ -16,5 +16,5 @@
 - **Performance/Safe Mode**: FPS monitored in [src/diagnostics/perfMonitor.js](src/diagnostics/perfMonitor.js); Safe Mode toggles reduce satellite caps and disable heavy post-processing. Avoid adding expensive Cesium primitives without gating behind Safe Mode or caps.
 - **Hot reload gotchas**: React StrictMode is intentionally off in [src/main.jsx](src/main.jsx) to avoid double Cesium init. After large edits, a full page reload is acceptable to restore WebGL context.
 - **Adding a new layer**: Extend `LAYER_DEFS`, seed initial data in `buildInitialLayerData` (App.jsx), add activate/deactivate cases, and (if networked) proxy the endpoint in Vite. Store Cesium objects on `layerDataRef`, not React state, and register ticks via `tickCoordinator`.
-- **Tests**: Unit tests live in [src/__tests__](src/__tests__). Prefer adding math/logic tests (terminator, geo, cache, time controller) in Vitest; Cesium primitives are not unit-tested.
+- **Tests**: Unit tests live in [src/**tests**](src/__tests__). Prefer adding math/logic tests (terminator, geo, cache, time controller) in Vitest; Cesium primitives are not unit-tested.
 - **Production gap**: Shipping build (`npm run build`) omits proxies; any new remote data must be reachable directly or via an external service (Cloudflare Worker, etc.). Document new proxy needs in README/docs.

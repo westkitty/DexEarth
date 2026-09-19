@@ -1,132 +1,97 @@
-// ─── Satellite Renderer ───────────────────────────────────────────────────────
-// Manages a reusable PointPrimitiveCollection and ground track polylines.
-
 import * as Cesium from 'cesium'
-import * as satellite from 'satellite.js'
-
-// LEO/MEO/GEO classification from mean motion (rev/day, stored in satrec.no rad/min)
-// MEO if period 2h-24h, GEO if ~24h+
-function classifyOrbit(satrec) {
-    // satrec.no is in rad/min
-    const periodMin = (2 * Math.PI) / satrec.no
-    if (periodMin < 128) return 'LEO'   // < ~2h8m
-    if (periodMin < 1410) return 'MEO'  // < ~23.5h
-    return 'GEO'
+import { orbitalFacts, propagateRecord, samplePath, splitDateline } from './orbital.js'
+const colors = {
+  LEO: '#00cfff',
+  MEO: '#aaffaa',
+  GEO: '#ff9900',
+  OTHER: '#d7aaff',
+  UNKNOWN: '#aaaaaa',
 }
-
-const ORBIT_COLORS = {
-    LEO: Cesium.Color.fromCssColorString('#00CFFF').withAlpha(0.85),
-    MEO: Cesium.Color.fromCssColorString('#AAFFAA').withAlpha(0.85),
-    GEO: Cesium.Color.fromCssColorString('#FF9900').withAlpha(0.85),
+export function propagateSatellites(points, records, timeMs, cap, state) {
+  points.removeAll()
+  const result = []
+  const watched = new Set(state.watchSubset || state.watchlist.map(w => w.id))
+  const f = state.filters
+  const ordered = [...records].sort((a, b) => priority(b) - priority(a))
+  function priority(r) {
+    return String(r.satrec.satnum) === state.selectedId
+      ? 2
+      : watched.has(String(r.satrec.satnum))
+        ? 1
+        : 0
+  }
+  for (const record of ordered) {
+    if (result.length >= cap) break
+    const facts = orbitalFacts(record, timeMs)
+    const p = propagateRecord(record, timeMs)
+    if (!facts || !p) continue
+    const selected = facts.id === state.selectedId
+    if (
+      !selected &&
+      ((f.search &&
+        !record.name.toLowerCase().includes(f.search.toLowerCase()) &&
+        !facts.id.includes(f.search)) ||
+        (f.orbit !== 'ALL' && facts.orbit !== f.orbit) ||
+        (f.watchedOnly && !watched.has(facts.id)) ||
+        p.altKm < f.minAlt ||
+        p.altKm > f.maxAlt ||
+        facts.inclinationDeg < f.minInclination ||
+        facts.inclinationDeg > f.maxInclination)
+    )
+      continue
+    points.add({
+      position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.altKm * 1000),
+      color: Cesium.Color.fromCssColorString(selected ? '#ffffff' : colors[facts.orbit]),
+      pixelSize: selected ? 12 : watched.has(facts.id) ? 8 : 6,
+      outlineWidth: 2,
+      outlineColor: Cesium.Color.BLACK,
+      id: { dexSatellite: facts.id },
+    })
+    result.push({ ...facts, ...p, alt: p.altKm * 1000 })
+  }
+  return result
 }
-
-/**
- * Propagate all satellites and update the point collection.
- * @param {Cesium.PointPrimitiveCollection} points
- * @param {Array<{name, satrec}>} tleRecords
- * @param {Date} now
- * @param {number} cap - max satellites to render
- * @param {string} [nameFilter] - substring filter
- * @returns {Array<{name, lon, lat, alt, orbit}>} propagated positions for snapshot
- */
-export function propagateSatellites(points, tleRecords, now, cap, nameFilter = '') {
-    points.removeAll()
-    const gmst = satellite.gstime(now)
-
-    const result = []
-    const filter = nameFilter.trim().toLowerCase()
-    let rendered = 0
-
-    for (const { name, satrec } of tleRecords) {
-        if (rendered >= cap) break
-        if (filter && !name.toLowerCase().includes(filter)) continue
-
-        try {
-            const pv = satellite.propagate(satrec, now)
-            if (!pv.position) continue
-            const geo = satellite.eciToGeodetic(pv.position, gmst)
-            const lon = satellite.degreesLong(geo.longitude)
-            const lat = satellite.degreesLat(geo.latitude)
-            const alt = geo.height * 1000 // km → m
-
-            if (!isFinite(lon) || !isFinite(lat) || !isFinite(alt)) continue
-
-            const orbit = classifyOrbit(satrec)
-            const color = ORBIT_COLORS[orbit]
-
-            points.add({
-                position: Cesium.Cartesian3.fromDegrees(lon, lat, Math.max(alt, 100_000)),
-                color,
-                pixelSize: orbit === 'GEO' ? 5 : 3,
-                outlineColor: color.withAlpha(0.15),
-                outlineWidth: 1,
-                id: name,
-            })
-            rendered++
-
-            result.push({
-                name, lon, lat, alt,
-                orbit,
-                velocity: pv.velocity,
-                inclinationDeg: satrec.inclo * (180 / Math.PI),
-            })
-        } catch {
-            /* skip bad record */
-        }
-    }
-
-    return result
-}
-
-/**
- * Build ground tracks for the next 90 minutes for up to `cap` satellites.
- * Returns a PolylineCollection that the caller should add/remove from the scene.
- * @param {Cesium.PolylineCollection} trackLines
- * @param {Array<{name, satrec}>} tleRecords
- * @param {Date} now
- * @param {number} cap - max ground tracks
- * @param {number} samples - points per track (default 45)
- * @param {string} [nameFilter]
- */
-export function buildGroundTracks(trackLines, tleRecords, now, cap, samples = 45, nameFilter = '') {
-    trackLines.removeAll()
-    const stepMs = (90 * 60 * 1000) / samples
-    const filter = nameFilter.trim().toLowerCase()
-    let count = 0
-
-    for (const { name, satrec } of tleRecords) {
-        if (count >= cap) break
-        if (filter && !name.toLowerCase().includes(filter)) continue
-
-        const positions = []
-        for (let i = 0; i < samples; i++) {
-            const t = new Date(now.getTime() + i * stepMs)
-            try {
-                const pv = satellite.propagate(satrec, t)
-                if (!pv.position) continue
-                const gmst = satellite.gstime(t)
-                const geo = satellite.eciToGeodetic(pv.position, gmst)
-                const lon = satellite.degreesLong(geo.longitude)
-                const lat = satellite.degreesLat(geo.latitude)
-                const alt = geo.height * 1000
-
-                if (isFinite(lon) && isFinite(lat) && isFinite(alt)) {
-                    positions.push(Cesium.Cartesian3.fromDegrees(lon, lat, Math.max(alt, 100_000)))
-                }
-            } catch { /* ignore */ }
-        }
-
-        if (positions.length >= 2) {
-            trackLines.add({
-                positions,
-                width: 1,
-                material: Cesium.Material.fromType('Color', {
-                    color: Cesium.Color.fromCssColorString('#00CFFF').withAlpha(0.2),
-                }),
-            })
-            count++
-        }
-    }
-
-    return count
+export function buildSelectedPaths(lines, record, timeMs, state, safeMode) {
+  lines.removeAll()
+  if (!record) return
+  const draw = (samples, ground, color) => {
+    for (const segment of splitDateline(samples))
+      lines.add({
+        positions: segment.map(p =>
+          Cesium.Cartesian3.fromDegrees(p.lon, p.lat, ground ? 1000 : p.altKm * 1000)
+        ),
+        width: ground ? 2 : 3,
+        material: Cesium.Material.fromType('Color', {
+          color: Cesium.Color.fromCssColorString(color),
+        }),
+      })
+  }
+  const options = { minutes: state.minutes, safeMode }
+  const past = samplePath(record, timeMs, { ...options, direction: -1 })
+  if (state.showPath) draw(past, false, '#8098b8')
+  if (!safeMode) {
+    const future = samplePath(record, timeMs, options)
+    if (state.showPath) draw(future, false, '#00ffbc')
+    if (state.showGround) draw([...past].reverse().concat(future.slice(1)), true, '#ffd166')
+  }
+  const current = propagateRecord(record, timeMs)
+  if (current && state.showGround) {
+    // Small surface cross marks the selected object's sub-satellite position.
+    draw(
+      [
+        { ...current, lon: current.lon - 0.15 },
+        { ...current, lon: current.lon + 0.15 },
+      ],
+      true,
+      '#ffffff'
+    )
+    draw(
+      [
+        { ...current, lat: current.lat - 0.15 },
+        { ...current, lat: current.lat + 0.15 },
+      ],
+      true,
+      '#ffffff'
+    )
+  }
 }

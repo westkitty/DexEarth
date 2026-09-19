@@ -32,77 +32,91 @@ void main() {
 
 // Build a lat/lon grid overlay primitive using Cesium polylines
 function buildLatLonGrid(viewer) {
-    const col = new Cesium.PolylineCollection()
-    const gridColor = Cesium.Color.fromCssColorString('#00FFFF').withAlpha(0.12)
+  const col = new Cesium.PolylineCollection()
+  const gridColor = Cesium.Color.fromCssColorString('#00FFFF').withAlpha(0.12)
 
-    // Latitude lines every 30°
-    for (let lat = -60; lat <= 60; lat += 30) {
-        const pts = []
-        for (let lon = -180; lon <= 180; lon += 5)
-            pts.push(Cesium.Cartesian3.fromDegrees(lon, lat, 100))
-        col.add({ positions: pts, width: 1, material: Cesium.Material.fromType('Color', { color: gridColor }) })
-    }
-    // Longitude lines every 30°
-    for (let lon = -180; lon <= 180; lon += 30) {
-        const pts = []
-        for (let lat = -90; lat <= 90; lat += 5)
-            pts.push(Cesium.Cartesian3.fromDegrees(lon, lat, 100))
-        col.add({ positions: pts, width: 1, material: Cesium.Material.fromType('Color', { color: gridColor }) })
-    }
-    viewer.scene.primitives.add(col)
-    return col
+  // Latitude lines every 30°
+  for (let lat = -60; lat <= 60; lat += 30) {
+    const pts = []
+    for (let lon = -180; lon <= 180; lon += 5)
+      pts.push(Cesium.Cartesian3.fromDegrees(lon, lat, 100))
+    col.add({
+      positions: pts,
+      width: 1,
+      material: Cesium.Material.fromType('Color', { color: gridColor }),
+    })
+  }
+  // Longitude lines every 30°
+  for (let lon = -180; lon <= 180; lon += 30) {
+    const pts = []
+    for (let lat = -90; lat <= 90; lat += 5) pts.push(Cesium.Cartesian3.fromDegrees(lon, lat, 100))
+    col.add({
+      positions: pts,
+      width: 1,
+      material: Cesium.Material.fromType('Color', { color: gridColor }),
+    })
+  }
+  viewer.scene.primitives.add(col)
+  return col
 }
 
 export const hologramPreset = {
-    id: 'HOLOGRAM',
-    label: 'Hologram',
-    isCheap: false,
-    defaults: {
-        scanlineIntensity: 0.7,
-        jitter: 0.4,
-        showGrid: true,
-    },
-    borderStyle: { color: '#00FFFF', alpha: 0.85, width: 1.5, glow: true },
-    labelStyle: { color: '#00FFFF', outlineColor: '#003333', fontSize: 11 },
+  id: 'HOLOGRAM',
+  label: 'Hologram',
+  isCheap: false,
+  defaults: {
+    scanlineIntensity: 0.7,
+    jitter: 0.4,
+    showGrid: true,
+  },
+  borderStyle: { color: '#00FFFF', alpha: 0.85, width: 1.5, glow: true },
+  labelStyle: { color: '#00FFFF', outlineColor: '#003333', fontSize: 11 },
 
-    activate(viewer, params) {
-        const stages = []
-        let gridPrimitive = null
+  activate(viewer, params) {
+    const stages = []
+    let gridPrimitive = null
 
-        try {
-            let time_s = 0
-            const stage = new Cesium.PostProcessStage({
-                name: 'dex_hologram',
-                fragmentShader: HOLOGRAM_FRAG,
-                uniforms: {
-                    scanlineIntensity: () => params.scanlineIntensity,
-                    jitter: () => params.jitter,
-                    time_s: () => { time_s += 0.016; return time_s },
-                },
-            })
-            viewer.scene.postProcessStages.add(stage)
-            stages.push(stage)
-        } catch (err) {
-            console.warn('[Hologram] PostProcessStage failed:', err.message)
-        }
+    try {
+      let time_s = 0
+      const stage = new Cesium.PostProcessStage({
+        name: 'dex_hologram',
+        fragmentShader: HOLOGRAM_FRAG,
+        uniforms: {
+          scanlineIntensity: () => params.scanlineIntensity,
+          jitter: () => params.jitter,
+          time_s: () => {
+            time_s += 0.016
+            return time_s
+          },
+        },
+      })
+      viewer.scene.postProcessStages.add(stage)
+      stages.push(stage)
+    } catch (err) {
+      console.warn('[Hologram] PostProcessStage failed:', err.message)
+    }
 
-        if (params.showGrid) {
-            try { gridPrimitive = buildLatLonGrid(viewer) } catch { /* ignore */ }
-        }
+    if (params.showGrid) {
+      try {
+        gridPrimitive = buildLatLonGrid(viewer)
+      } catch {
+        /* ignore */
+      }
+    }
 
-        return { stages, gridPrimitive }
-    },
+    return { stages, gridPrimitive }
+  },
 
-    activateLite(viewer) {
-        // Just color grade globe to bluish; skip PostProcessStage
-        if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.hueShift = 0.4
-    },
+  activateLite(viewer) {
+    // Just color grade globe to bluish; skip PostProcessStage
+    if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.hueShift = 0.4
+  },
 
-    deactivate(viewer) {
-        if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.hueShift = 0.0
-    },
+  deactivate(viewer) {
+    if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.hueShift = 0.0
+  },
 
-    onSafeModeEnter(viewer) {
-        if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.hueShift = 0.4
-    },
+  onSafeModeEnter(viewer) {
+    if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.hueShift = 0.4
+  },
 }

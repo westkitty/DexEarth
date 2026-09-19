@@ -1,1 +1,156 @@
 /* App component styles handled in index.css */
+
+/* Orbital workspaces: touch-first controls, bounded sheets, unobstructed globe. */
+.workspace-hud {
+  max-width: calc(100vw - 16px);
+  padding-top: env(safe-area-inset-top);
+}
+.workspace-hud button,
+.workspace-hud summary,
+.event-timeline button {
+  min-height: 44px;
+}
+.workspace-hud input:not([type='checkbox']):not([type='range']),
+.workspace-hud select {
+  min-height: 36px;
+  max-width: 100%;
+}
+.workspace-hud button:focus-visible,
+.analysis-panel input:focus-visible,
+.analysis-panel select:focus-visible {
+  outline: 2px solid #ffd166;
+  outline-offset: 2px;
+}
+.analysis-panel {
+  color: #c1d4e4;
+  font: 12px/1.5 monospace;
+  overflow-wrap: anywhere;
+}
+.analysis-panel h3 {
+  color: #6de3da;
+  font-size: 14px;
+}
+.analysis-panel article {
+  padding: 10px 0;
+  border-bottom: 1px solid #477083;
+}
+.analysis-panel label {
+  display: block;
+  margin: 7px 0;
+}
+.analysis-panel input:not([type='checkbox']),
+.analysis-panel select,
+.analysis-panel textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  background: #101c29;
+  color: #e5f5ff;
+  border: 1px solid #477083;
+  border-radius: 4px;
+  padding: 8px;
+  font: inherit;
+}
+.analysis-panel button,
+.event-timeline button {
+  background: #101f2c;
+  color: #9aefe1;
+  border: 1px solid #477083;
+  border-radius: 4px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+.analysis-panel button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.analysis-panel .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.filter-grid > * {
+  min-width: 0;
+}
+.analysis-panel dl {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) 2fr;
+  gap: 8px;
+}
+.analysis-panel dd {
+  margin: 0;
+}
+.analysis-panel dt {
+  color: #77a6be;
+}
+.truth-warning,
+.analysis-panel [role='alert'],
+.event-timeline [role='alert'] {
+  color: #ffd166;
+}
+.event-timeline {
+  position: fixed;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  right: max(10px, env(safe-area-inset-right));
+  width: min(500px, calc(100vw - 150px));
+  max-height: 30dvh;
+  overflow-y: auto;
+  z-index: 90;
+  background: #07101bea;
+  color: #b8d4dc;
+  font: 11px/1.5 monospace;
+  border-radius: 6px;
+}
+.event-timeline ol {
+  list-style: none;
+  padding: 8px;
+  margin: 0;
+}
+.event-timeline li {
+  border-bottom: 1px solid #254452;
+  padding: 6px 0;
+}
+.event-timeline p {
+  padding: 0 8px;
+}
+.event-timeline [data-category='LOCAL SIMULATION'] {
+  color: #ffb060;
+}
+.event-timeline [data-category='REMOTE OBSERVATION'] {
+  color: #68d9ff;
+}
+@media (max-width: 767px) {
+  .workspace-hud {
+    left: 8px !important;
+    top: max(8px, env(safe-area-inset-top)) !important;
+    width: calc(100vw - 16px) !important;
+    transform: none !important;
+  }
+  .workspace-hud input:not([type='checkbox']):not([type='range']),
+  .workspace-hud select,
+  .workspace-hud textarea {
+    font-size: 16px !important;
+  }
+  .workspace-hud button {
+    font-size: 12px !important;
+  }
+  .event-timeline {
+    width: calc(100vw - 140px);
+    max-height: 22dvh;
+  }
+}
+@media (max-height: 650px) and (orientation: landscape) {
+  .workspace-hud {
+    max-width: 48vw;
+  }
+  .event-timeline {
+    max-width: 44vw;
+  }
+}

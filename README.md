@@ -15,18 +15,18 @@ A tactical geospatial intelligence dashboard running entirely in the browser. Re
 
 ## Phase I — Live Data Layers
 
-| Layer | Source | API Key |
-|-------|--------|---------|
-| `AIR_RADAR` | airplanes.live (4-region aggregator) | None |
-| `ORBITAL_MATH` | CelesTrak TLE (GROUP=visual) | None |
-| `SEISMIC_GRID` | USGS Earthquake GeoJSON | None |
-| `THERMAL_FIRES` | NASA FIRMS VIIRS NRT | **Free, required** |
-| `MARITIME_LANES` | Static waypoints | None |
-| `FIBER_CABLES` | TeleGeography submarine cable map | None |
-| `TECTONIC_PLATES` | Fraxen/tectonicplates GeoJSON | None |
-| `CLOUD_SYSTEMS` | Procedural (Cesium CloudCollection) | None |
-| `SOLAR_SYNC` | System clock | None |
-| `VISUAL_FX` | CSS post-processing | None |
+| Layer             | Source                               | API Key            |
+| ----------------- | ------------------------------------ | ------------------ |
+| `AIR_RADAR`       | airplanes.live (4-region aggregator) | None               |
+| `ORBITAL_MATH`    | CelesTrak TLE (GROUP=visual)         | None               |
+| `SEISMIC_GRID`    | USGS Earthquake GeoJSON              | None               |
+| `THERMAL_FIRES`   | NASA FIRMS VIIRS NRT                 | **Free, required** |
+| `MARITIME_LANES`  | Static waypoints                     | None               |
+| `FIBER_CABLES`    | TeleGeography submarine cable map    | None               |
+| `TECTONIC_PLATES` | Fraxen/tectonicplates GeoJSON        | None               |
+| `CLOUD_SYSTEMS`   | Procedural (Cesium CloudCollection)  | None               |
+| `SOLAR_SYNC`      | System clock                         | None               |
+| `VISUAL_FX`       | CSS post-processing                  | None               |
 
 ---
 
@@ -36,15 +36,16 @@ Zero-cost, offline-capable, non-breaking addition to Phase I/II.
 
 ### Country Overlay System (🌐 Overlays panel)
 
-| Toggle | Description |
-|--------|-------------|
-| Country Borders | Polyline borders clamped to globe (glow toggle, width slider) |
-| Country Labels (Inside) | Centroid-placed names with LOD + screen-space collision avoidance |
+| Toggle                  | Description                                                         |
+| ----------------------- | ------------------------------------------------------------------- |
+| Country Borders         | Polyline borders clamped to globe (glow toggle, width slider)       |
+| Country Labels (Inside) | Centroid-placed names with LOD + screen-space collision avoidance   |
 | Labels (Follow Borders) | Canvas text billboards rotated to align with longest border segment |
 
 **Search**: Type any country name → fly-to and highlight on globe. Click a border/label to select.
 
 **Bundled data** (Natural Earth, public domain):
+
 - `public/data/borders/ne_110m_admin_0_countries.geojson`
 - `public/data/borders/ne_50m_admin_0_countries.geojson`
 - `public/data/borders/ne_110m_admin_1_states_provinces.geojson`
@@ -55,13 +56,13 @@ Includes Dynamic Level of Detail (LOD): smoothly seamlessly injects state and pr
 
 ### Render Style Presets (🎨 Render Style panel)
 
-| Preset | Description | GPU Cost |
-|--------|-------------|----------|
-| 🌍 Realistic | Lighting + atmosphere + fog + FXAA | Low |
-| 🎨 Cel-Shaded | GLSL edge-detect + posterize | Medium |
-| 🔵 Hologram | Cyan grade + scanlines + animated jitter + lat/lon grid | Medium |
-| 🔲 Wireframe | Dark globe + lat/lon PolylineCollection | **Very Low** |
-| 🌑 Night-Ops | Vignette + green desaturate + glowing overlays | Low |
+| Preset        | Description                                             | GPU Cost     |
+| ------------- | ------------------------------------------------------- | ------------ |
+| 🌍 Realistic  | Lighting + atmosphere + fog + FXAA                      | Low          |
+| 🎨 Cel-Shaded | GLSL edge-detect + posterize                            | Medium       |
+| 🔵 Hologram   | Cyan grade + scanlines + animated jitter + lat/lon grid | Medium       |
+| 🔲 Wireframe  | Dark globe + lat/lon PolylineCollection                 | **Very Low** |
+| 🌑 Night-Ops  | Vignette + green desaturate + glowing overlays          | Low          |
 
 **Safe Mode**: Auto-activates at < 25 FPS — removes expensive PostProcessStages, reduces label density. Manual toggle in panel.
 
@@ -76,30 +77,35 @@ All Phase II features operate without API keys, paid services, or logins. Bundle
 ### Feature Overview
 
 **⏱ Time Controller**
+
 - LIVE / MANUAL / REPLAY modes with speed multiplier
 - Time scrub slider (any historical UTC timestamp)
 - Step controls: ±1 min, ±1 hr, ±1 day
 - Solar terminator and day/night sunlight toggle driven by the time controller
 
 **🛰 Satellites Layer**
-- TLE loading chain: IndexedDB cache → Vite proxy (`/proxy/tle`) → bundled fallback
+
+- Bundled-only by default; optional remote chain: fresh cache → proxy → stale cache → bundled fallback
 - 26-satellite bundled dataset for offline use (`public/data/tle/starter.tle`)
 - LEO / MEO / GEO orbit classification with color coding (cyan / green / orange)
-- Optional 90-minute ground tracks (up to 30 per session)
-- Name filter, sat cap slider, refresh button with cache-age display
+- Selected-only 5–180 minute arcs and surface tracks; bounded samples and dateline splitting
+- Inspector, filters, local watchlist, pass predictions and explicit provenance/element age
 
 **⚡ Seismic Simulator**
+
 - Inject seismic events by preset (Japan / Chile / Alaska) or manual lon/lat/mag
 - Deterministic P-wave (6 km/s) and S-wave (3.5 km/s) rings — scrub-correct
 - PolylineGlow rendering with magnitude-scaled widths and fade-over-time
 - Epicenter cross marker; events list with remove
 
 **📍 Markers**
+
 - Globe markers persisted in IndexedDB — survive page refresh
 - Severity colors: `info` (green) / `warning` (gold) / `critical` (red) / `classified` (purple)
 - Jump-to with 2-second camera flyTo; search/filter bar
 
 **⚠ Alerts & Geofences**
+
 - Circle geofences: enter center + radius
 - Polygon geofences: click on globe to draw vertices, finish to save
 - Watch layers: any active layer's geometry checked for incursions at ~3 Hz
@@ -107,12 +113,14 @@ All Phase II features operate without API keys, paid services, or logins. Bundle
 - Rate-limited: one alert per geofence+target per minute
 
 **⛓ Cascade Simulator**
+
 - Trigger realistic failure events: Cable Sever, Satellite Loss, Regional Disruption
 - Propagates degradation parameters to affected layers
 - Causal chain panel explains which layers are affected and why
 - Fully reversible — Reset All restores all layers immediately
 
 **◈ Correlation Engine**
+
 - Cross-layer proximity matching in 3 modes:
   - **Point→Point**: e.g., satellites near seismic epicenters
   - **Point→Line**: e.g., markers near cable routes
@@ -121,33 +129,66 @@ All Phase II features operate without API keys, paid services, or logins. Bundle
 - JSON export of all correlation hits
 
 **◉ Threat Index**
+
 - Computes a global 2° grid threat score from active layer data
 - Sources: thermal fire density, seismic proximity, maritime traffic, tectonic proximity
 - 3 weight presets: Wildfire / Geopolitical / Seismic; or manual sliders
 - Rendered as color-coded heat rectangles (green → yellow → red)
 
 **🎬 Cinematic Mode**
+
 - 4 predefined camera tours: Global Fiber Backbone, Tectonic Fire Ring, Storm Belts, Orbital Shell
 - Keyframe flyTo with configurable speed (0.25×–4×)
 - Camera state saved on entry and restored on exit
 - Skip forward, pause/resume controls
 
 **📊 Performance HUD**
+
 - Live FPS counter (RAF-based, 1s rolling average)
 - Cesium primitive count display
 - Safe Mode: auto-triggers at sustained <20 FPS — reduces satellite cap, disables ground tracks
 - Manual force-on/off toggle
 
 **🔄 Multi-Tab Sync**
+
 - BroadcastChannel sync across same-device tabs
 - Leader broadcasts camera position, time, and layer toggles to followers
 - No server required
 
 ---
 
+## Orbital intelligence + observation replay
+
+- **One shared satellite layer**: touch picking, catalog/name selection, TLE-derived
+  inspector, shell/altitude/inclination filters, selected past/future orbit and
+  dateline-safe surface track. Safe Mode reduces samples and caps points.
+- **Local passes and watchlist**: save an observer or use a marker, predict the next
+  24 hours above 10° elevation, save satellites/nicknames in IndexedDB. All positions
+  are SGP4 calculations, not live telemetry; stale elements remain visibly flagged.
+- **Observation sets**: save/duplicate/rename/load/delete; versioned JSON import/export
+  restores camera, layers, clock, selection, filters, overlays and local simulations.
+  It does not make old external data fresh.
+- **Local replay sessions**: record, stop, play/pause, scrub, step, speed and reset;
+  durable sessions and JSON import/export. Historical remote state is unavailable
+  unless actually retained; this release records provenance references only and
+  hides dynamic remote layers during replay.
+- **Truthful offline catalog**: fresh/cached/bundled/stale/unavailable/key-missing
+  states, bounded 32 MiB/24-record remote cache, per-dataset clearing and retention
+  preferences that never bypass TTL. User-authored records are kept separately.
+- **Offline production reload**: bundled Natural Earth II globe, borders and starter
+  TLE; a finite asset-only service worker installs after first online use. No keys,
+  accounts, paid services, analytics or external server are required for local use.
+- **Touch layouts**: bounded drawers, accessible controls and collapsible timeline;
+  browser-emulated phone/tablet validation, not a physical-device FPS guarantee.
+
+Read [the format, architecture and limitations guide](docs/orbital-observations-replay.md)
+and [OPERATIONAL_STATE.md](OPERATIONAL_STATE.md) for verified evidence and limitations.
+
+---
+
 ## Installation
 
-**Prerequisites:** Node.js 18+ and npm.
+**Prerequisites:** Node.js 22+ and npm (tested with Node 22).
 
 ```bash
 git clone https://github.com/westkitty/DexEarth.git
@@ -209,23 +250,25 @@ src/
 ## Testing
 
 ```bash
-npm run test:run    # 59 unit tests — terminator math, geo utils, cache TTL, time controller
+npm run test:run    # orbital, observation/replay, cache migration, UI state and existing suites
 npm run lint        # ESLint (0 errors enforced)
+npm run ci          # lint + format + tests + production build
+npm run test:browser # optional Playwright smoke against production preview
 ```
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Fix |
-|---------|-----|
-| Globe is black | Hard-refresh (`Cmd+Shift+R`). Cesium can fail on first HMR load. |
-| AIR_RADAR shows 0 | Vite dev server must be running (aggregator proxy is server-side). |
-| ORBITAL_MATH shows 0 pts | CelesTrak can be slow. Toggle off/on after 30s. |
-| THERMAL_FIRES unavailable | Set `VITE_FIRMS_MAP_KEY` in `.env`. |
-| Satellites not loading | Satellites panel → "Refresh" forces a new remote fetch. |
-| Low FPS / stuttering | Performance panel → Force Safe Mode on, reduce satellite cap. |
-| Blank screen on tablet | Use Chrome; ensure hardware acceleration is on. |
+| Symptom                   | Fix                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Globe is black            | Hard-refresh (`Cmd+Shift+R`). Cesium can fail on first HMR load.                                             |
+| AIR_RADAR shows 0         | Vite dev server must be running (aggregator proxy is server-side).                                           |
+| ORBITAL_MATH shows 0 pts  | CelesTrak can be slow. Toggle off/on after 30s.                                                              |
+| THERMAL_FIRES unavailable | Set `VITE_FIRMS_MAP_KEY` in `.env`.                                                                          |
+| Satellites not loading    | Satellites panel → enable optional remote retrieval, then Refresh TLE. Otherwise refresh reloads the bundle. |
+| Low FPS / stuttering      | Performance panel → Force Safe Mode on, reduce satellite cap.                                                |
+| Blank screen on tablet    | Use Chrome; ensure hardware acceleration is on.                                                              |
 
 ---
 

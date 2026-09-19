@@ -1,3 +1,4 @@
+import { offlineAssetsPlugin } from './scripts/offline-assets.js'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import cesium from 'vite-plugin-cesium'
@@ -16,12 +17,16 @@ const flightsAggregatorPlugin = {
       ]
       const RADIUS = 4000 // nautical miles
       const byHex = new Map()
+      let successes = 0
       await Promise.all(
         POINTS.map(async ([lat, lon]) => {
           try {
-            const r = await fetch(`https://api.airplanes.live/v2/point/${lat}/${lon}/${RADIUS}`)
+            const r = await fetch(`https://api.airplanes.live/v2/point/${lat}/${lon}/${RADIUS}`, {
+              signal: AbortSignal.timeout(8000),
+            })
             if (!r.ok) return
             const d = await r.json()
+            successes++
             ;(d.ac || []).forEach(a => {
               if (a.hex) byHex.set(a.hex, a)
             })
@@ -32,15 +37,23 @@ const flightsAggregatorPlugin = {
       )
       res.setHeader('Content-Type', 'application/json')
       res.setHeader('Access-Control-Allow-Origin', '*')
-      res.end(JSON.stringify({ ac: [...byHex.values()] }))
+      res.statusCode = successes ? 200 : 503
+      res.end(
+        JSON.stringify({
+          ac: [...byHex.values()],
+          regionsAvailable: successes,
+          regionsTotal: POINTS.length,
+        })
+      )
     })
   },
 }
 
 export default defineConfig({
-  plugins: [react(), cesium(), flightsAggregatorPlugin],
+  plugins: [react(), cesium(), flightsAggregatorPlugin, offlineAssetsPlugin()],
   server: {
     host: '0.0.0.0',
+    allowedHosts: ['.e2b.app'],
     port: 3000,
     proxy: {
       '/proxy/cables': {

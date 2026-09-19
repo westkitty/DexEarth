@@ -23,55 +23,55 @@ void main() {
 `
 
 export const nightOpsPreset = {
-    id: 'NIGHT_OPS',
-    label: 'Night-Ops',
-    isCheap: false,
-    defaults: {
-        vignetteStrength: 2.2,
-        atmosphereBrightness: 0.4,
-    },
-    borderStyle: { color: '#00FF44', alpha: 0.7, width: 1.2, glow: true },
-    labelStyle: { color: '#00FF44', outlineColor: '#001100', fontSize: 10 },
+  id: 'NIGHT_OPS',
+  label: 'Night-Ops',
+  isCheap: false,
+  defaults: {
+    vignetteStrength: 2.2,
+    atmosphereBrightness: 0.4,
+  },
+  borderStyle: { color: '#00FF44', alpha: 0.7, width: 1.2, glow: true },
+  labelStyle: { color: '#00FF44', outlineColor: '#001100', fontSize: 10 },
 
-    activate(viewer, params) {
-        const scene = viewer.scene
-        if (scene.skyAtmosphere) {
-            scene.skyAtmosphere.show = true
-            scene.skyAtmosphere.atmosphereLightIntensity = params.atmosphereBrightness
-        }
-        scene.globe.enableLighting = true
-        scene.globe.atmosphereLightIntensity = 0.5
+  activate(viewer, params) {
+    const scene = viewer.scene
+    if (scene.skyAtmosphere) {
+      scene.skyAtmosphere.show = true
+      scene.skyAtmosphere.atmosphereLightIntensity = params.atmosphereBrightness
+    }
+    scene.globe.enableLighting = true
+    scene.globe.atmosphereLightIntensity = 0.5
 
-        const stages = []
-        try {
-            const stage = new Cesium.PostProcessStage({
-                name: 'dex_nightops',
-                fragmentShader: NIGHTOPS_FRAG,
-                uniforms: {
-                    vignetteStrength: () => params.vignetteStrength,
-                },
-            })
-            scene.postProcessStages.add(stage)
-            stages.push(stage)
-        } catch (err) {
-            console.warn('[NightOps] PostProcessStage failed:', err.message)
-        }
-        return { stages }
-    },
+    const stages = []
+    try {
+      const stage = new Cesium.PostProcessStage({
+        name: 'dex_nightops',
+        fragmentShader: NIGHTOPS_FRAG,
+        uniforms: {
+          vignetteStrength: () => params.vignetteStrength,
+        },
+      })
+      scene.postProcessStages.add(stage)
+      stages.push(stage)
+    } catch (err) {
+      console.warn('[NightOps] PostProcessStage failed:', err.message)
+    }
+    return { stages }
+  },
 
-    activateLite(viewer) {
-        viewer.scene.globe.enableLighting = true
-        viewer.scene.globe.atmosphereLightIntensity = 0.5
-        if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = false
-    },
+  activateLite(viewer) {
+    viewer.scene.globe.enableLighting = true
+    viewer.scene.globe.atmosphereLightIntensity = 0.5
+    if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = false
+  },
 
-    deactivate(viewer) {
-        viewer.scene.globe.enableLighting = false
-        viewer.scene.globe.atmosphereLightIntensity = 2.0
-        if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = false
-    },
+  deactivate(viewer) {
+    viewer.scene.globe.enableLighting = false
+    viewer.scene.globe.atmosphereLightIntensity = 2.0
+    if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = false
+  },
 
-    onSafeModeEnter(viewer) {
-        if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = false
-    },
+  onSafeModeEnter(viewer) {
+    if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = false
+  },
 }

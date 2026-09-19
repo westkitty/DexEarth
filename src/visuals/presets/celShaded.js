@@ -38,46 +38,46 @@ void main() {
 `
 
 export const celShadedPreset = {
-    id: 'CEL_SHADED',
-    label: 'Cel-Shaded',
-    isCheap: false,
-    defaults: {
-        edgeStrength: 3.5,
-        posterize: 4.0,
-        contrast: 1.3,
-    },
-    borderStyle: { color: '#222222', alpha: 0.95, width: 2.5, glow: false },
-    labelStyle: { color: '#FFFFFF', outlineColor: '#000000', fontSize: 12 },
+  id: 'CEL_SHADED',
+  label: 'Cel-Shaded',
+  isCheap: false,
+  defaults: {
+    edgeStrength: 3.5,
+    posterize: 4.0,
+    contrast: 1.3,
+  },
+  borderStyle: { color: '#222222', alpha: 0.95, width: 2.5, glow: false },
+  labelStyle: { color: '#FFFFFF', outlineColor: '#000000', fontSize: 12 },
 
-    activate(viewer, params) {
-        const stages = []
-        try {
-            const stage = new Cesium.PostProcessStage({
-                name: 'dex_cel_shaded',
-                fragmentShader: EDGE_FRAG,
-                uniforms: {
-                    edgeStrength: () => params.edgeStrength,
-                    posterize: () => params.posterize,
-                },
-            })
-            viewer.scene.postProcessStages.add(stage)
-            stages.push(stage)
-        } catch (err) {
-            console.warn('[CelShaded] PostProcessStage failed:', err.message)
-        }
-        return { stages }
-    },
+  activate(viewer, params) {
+    const stages = []
+    try {
+      const stage = new Cesium.PostProcessStage({
+        name: 'dex_cel_shaded',
+        fragmentShader: EDGE_FRAG,
+        uniforms: {
+          edgeStrength: () => params.edgeStrength,
+          posterize: () => params.posterize,
+        },
+      })
+      viewer.scene.postProcessStages.add(stage)
+      stages.push(stage)
+    } catch (err) {
+      console.warn('[CelShaded] PostProcessStage failed:', err.message)
+    }
+    return { stages }
+  },
 
-    activateLite(viewer) {
-        // Safe mode: just adjust contrast via globe, skip PostProcessStage
-        viewer.scene.globe.atmosphereLightIntensity = 2.5
-    },
+  activateLite(viewer) {
+    // Safe mode: just adjust contrast via globe, skip PostProcessStage
+    viewer.scene.globe.atmosphereLightIntensity = 2.5
+  },
 
-    deactivate(viewer) {
-        viewer.scene.globe.atmosphereLightIntensity = 2.0
-    },
+  deactivate(viewer) {
+    viewer.scene.globe.atmosphereLightIntensity = 2.0
+  },
 
-    onSafeModeEnter(viewer) {
-        viewer.scene.globe.atmosphereLightIntensity = 2.5
-    },
+  onSafeModeEnter(viewer) {
+    viewer.scene.globe.atmosphereLightIntensity = 2.5
+  },
 }

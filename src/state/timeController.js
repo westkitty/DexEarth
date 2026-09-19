@@ -1,3 +1,4 @@
+import { emitSessionEvent } from './sessionEvents.js'
 // ─── Time Controller ────────────────────────────────────────────────────────
 // Single source of truth for app time. Supports LIVE, MANUAL, and REPLAY modes.
 // All time-dependent Phase II layers consume this.
@@ -16,7 +17,11 @@ let _stepSizeMs = 60_000 // default 1 minute
 function _notify() {
   const t = getTimeMs()
   _subscribers.forEach(fn => {
-    try { fn(t) } catch { /* never crash */ }
+    try {
+      fn(t)
+    } catch {
+      /* never crash */
+    }
   })
 }
 
@@ -43,7 +48,9 @@ function _startReplay() {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export function getMode() { return _mode }
+export function getMode() {
+  return _mode
+}
 
 export function getTimeMs() {
   if (_mode === MODES.LIVE) return Date.now()
@@ -52,31 +59,39 @@ export function getTimeMs() {
 }
 
 export function setMode(mode) {
+  const previousTime = getTimeMs()
   if (!MODES[mode]) throw new Error(`Unknown mode: ${mode}`)
   _stopReplay()
   if (mode === MODES.LIVE) {
     _manualTimeMs = Date.now()
     _replayTimeMs = Date.now()
+  } else if (mode === MODES.MANUAL) {
+    _manualTimeMs = previousTime
   } else if (mode === MODES.REPLAY) {
     _replayTimeMs = getTimeMs()
     _replayLastWall = Date.now()
     _startReplay()
   }
   _mode = mode
+  emitSessionEvent('time', { mode, timeMs: getTimeMs() })
   _notify()
 }
 
 export function setManualTime(ms) {
   _manualTimeMs = ms
   _replayTimeMs = ms
-  _notify()  // always notify — callers set mode before calling
+  emitSessionEvent('time', { mode: _mode, timeMs: ms })
+  _notify() // always notify — callers set mode before calling
 }
 
 export function setReplaySpeed(speed) {
   _replaySpeed = speed
+  emitSessionEvent('time-speed', { speed })
 }
 
-export function getReplaySpeed() { return _replaySpeed }
+export function getReplaySpeed() {
+  return _replaySpeed
+}
 
 export function step(offsetMs) {
   if (_mode !== MODES.MANUAL) setMode(MODES.MANUAL)
@@ -91,8 +106,12 @@ export function resetToNow() {
   _notify()
 }
 
-export function setStepSize(ms) { _stepSizeMs = ms }
-export function getStepSize() { return _stepSizeMs }
+export function setStepSize(ms) {
+  _stepSizeMs = ms
+}
+export function getStepSize() {
+  return _stepSizeMs
+}
 
 export function subscribe(fn) {
   _subscribers.add(fn)
@@ -114,3 +133,11 @@ export function fmtLocal(ms) {
 }
 
 export { MODES }
+
+// Replay sessions own their clock; no independent RAF may race pause/scrub.
+export function setSessionTime(ms) {
+  _stopReplay()
+  _mode = MODES.REPLAY
+  _replayTimeMs = ms
+  _notify()
+}
