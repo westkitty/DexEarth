@@ -1,3 +1,5 @@
+import { createReplayAutosave } from '../storage/replayAutosave.js'
+import { getSavedMarkerWarning, subscribeSavedMarkers } from '../state/savedMarkers.js'
 import { enforceCacheBounds } from '../storage/cache.js'
 import { registerLayer, getLayer } from '../state/layerRegistry.js'
 import { satellitesLayer } from '../layers/satellites/layer.js'
@@ -8,7 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import { configureWorkspace, setSavedMarkers } from '../state/workspace.js'
 import { initWatchlist } from '../state/orbitStore.js'
 import { initViewStore } from '../state/viewStore.js'
-import { markersGetAll, userPut, userRecords } from '../storage/db.js'
+import { markersGetAll } from '../storage/db.js'
 import {
   emitSessionEvent,
   getSessionEvents,
@@ -26,6 +28,9 @@ export default function WorkspaceRoot({ viewer, toggles, restoreLayers }) {
   const [expanded, setExpanded] = useState(false)
   const [replaying, setReplaying] = useState(false)
   const [storageError, setStorageError] = useState('')
+  const [autosaveError, setAutosaveError] = useState('')
+  const [markerWarning, setMarkerWarning] = useState(getSavedMarkerWarning)
+  useEffect(() => subscribeSavedMarkers(setMarkerWarning), [])
   const [offlineReady, setOfflineReady] = useState(false)
   useEffect(() => {
     const ready = () => setOfflineReady(true)
@@ -61,21 +66,22 @@ export default function WorkspaceRoot({ viewer, toggles, restoreLayers }) {
       ALERTS: alertsLayer,
     }
     for (const [id, layer] of Object.entries(modules)) registerLayer(id, layer)
-    let saved = null
+    let disposed = false
+    const autosave = createReplayAutosave({
+      onError: error => {
+        if (!disposed)
+          setAutosaveError(
+            `Replay not saved: ${error.message}. Retrying in 5 seconds; export your session as a backup.`
+          )
+      },
+      onSaved: () => {
+        if (!disposed) setAutosaveError('')
+      },
+    })
     const timer = setInterval(() => {
       for (const [id, layer] of Object.entries(modules)) getLayer(id).active = layer.isActive()
       replay.tick()
-      if (replay.session && !replay.recording && replay.session.id !== saved) {
-        const session = structuredClone(replay.session)
-        saved = session.id
-        userRecords('replays')
-          .then(rows => {
-            if (rows.length >= 20 && !rows.some(r => r.id === saved))
-              throw new Error('20 saved replays reached; export/delete a session first')
-            return userPut('replays', session)
-          })
-          .catch(e => setStorageError(e.message))
-      }
+      void autosave(replay.session, replay.recording)
       broadcastSync.broadcast()
     }, 250)
     broadcastSync.init({
@@ -107,6 +113,7 @@ export default function WorkspaceRoot({ viewer, toggles, restoreLayers }) {
     const unsubReplay = subscribeReplay(reflectReplay),
       unsubTime = tc.subscribe(reflectReplay)
     return () => {
+      disposed = true
       remove()
       clearInterval(timer)
       unsubSettings()
@@ -126,6 +133,8 @@ export default function WorkspaceRoot({ viewer, toggles, restoreLayers }) {
       </button>
       {offlineReady && expanded && <p>Offline assets ready (production shell)</p>}
       {storageError && <p role="alert">{storageError}</p>}
+      {autosaveError && <p role="alert">{autosaveError}</p>}
+      {markerWarning && <p role="status">{markerWarning}</p>}
       {replaying && <p className="truth-warning">REPLAY · {EXTERNAL_LIMITATION}</p>}
       {expanded && (
         <ol>

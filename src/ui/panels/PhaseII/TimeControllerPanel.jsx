@@ -237,7 +237,6 @@ export default function TimeControllerPanel({ viewer }) {
             type="range"
             min={-1000}
             max={1000}
-            defaultValue={0}
             value={sliderPct()}
             onChange={handleSlider}
             style={STYLE.slider}

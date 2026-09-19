@@ -142,7 +142,20 @@ try {
   )
   await page.locator('#tour-tab-seismic').click()
   await page.getByRole('button', { name: '▶ ACTIVATE', exact: true }).click()
+  for (const invalid of ['', '12junk', '13']) {
+    await page.getByLabel('Simulation magnitude', { exact: true }).fill(invalid)
+    await page.getByRole('button', { name: '+ Add Event (now)', exact: true }).click()
+    await expect(page.getByRole('alert')).toBeVisible()
+    expect(
+      await page.evaluate(
+        async () =>
+          (await import('/src/layers/seismicSim/layer.js')).seismicSimLayer.getEvents().length
+      )
+    ).toBe(0)
+  }
   await page.getByRole('button', { name: 'Japan', exact: true }).click()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  results.push('Invalid manual seismic input rejected before state mutation; preset recovery: PASS')
   await page.locator('#tour-tab-tools').click()
   await page
     .getByText('📍 MARKERS', { exact: true })
@@ -203,6 +216,40 @@ try {
   expect(correlation).toBeGreaterThan(0)
   results.push(
     'Marker/geofence creation, simulated seismic event, cascade degradation/reset, simulation categorization, and cross-layer correlation: PASS'
+  )
+  await page.evaluate(async () => {
+    const db = await import('/src/storage/db.js')
+    await db.markerUpdate({
+      id: 'audit-invalid',
+      title: 'CORRUPT LEGACY FIXTURE',
+      lon: 0,
+      lat: 100,
+      tags: [null],
+    })
+  })
+  const markerPanel = page.getByText('📍 MARKERS', { exact: true }).locator('..')
+  await markerPanel.getByRole('button', { name: '■ DEACTIVATE', exact: true }).click()
+  await markerPanel.getByRole('button', { name: '▶ ACTIVATE', exact: true }).click()
+  await expect(page.getByText(/1 saved marker\(s\) not displayed/)).toBeVisible()
+  const preserved = await page.evaluate(async () => {
+    const db = await import('/src/storage/db.js')
+    const layer = (await import('/src/layers/markers/layer.js')).markersLayer
+    const workspace = await import('/src/state/workspace.js')
+    return {
+      stored: (await db.markersGetAll()).length,
+      visible: layer.getMarkers().length,
+      captured: workspace.captureWorkspace().markers.length,
+    }
+  })
+  expect(preserved).toEqual({ stored: 2, visible: 1, captured: 1 })
+  await page.evaluate(async () =>
+    (await import('/src/storage/db.js')).markerDelete('audit-invalid')
+  )
+  await markerPanel.getByRole('button', { name: '■ DEACTIVATE', exact: true }).click()
+  await markerPanel.getByRole('button', { name: '▶ ACTIVATE', exact: true }).click()
+  await expect(page.getByText(/saved marker\(s\) not displayed/)).toHaveCount(0)
+  results.push(
+    'Corrupt legacy marker fixture omitted with warning, retained in storage, and excluded from capture: PASS'
   )
   // Activate the actual cinematic controller through its existing panel.
   await page.getByRole('button', { name: /Global Fiber Backbone/ }).click()
@@ -288,6 +335,41 @@ try {
       (await import('/src/state/layerRegistry.js')).getGeometrySnapshot('AIR_RADAR')
     )
   ).toBeNull()
+  // Exercise actual timer autosave, not only the helper, against a full store.
+  await page.evaluate(async () => {
+    const { ReplayController } = await import('/src/state/replay.js')
+    const { captureWorkspace } = await import('/src/state/workspace.js')
+    const { userPut } = await import('/src/storage/db.js')
+    const seed = new ReplayController({ capture: captureWorkspace, apply: () => {} })
+    seed.start('AUTOSAVE CAP FIXTURE')
+    seed.stop()
+    for (let i = 0; i < 20; i++)
+      await userPut('replays', { ...seed.session, id: `audit-replay-${i}` })
+  })
+  await page.locator('#tour-tab-sessions').click()
+  await page.getByRole('button', { name: 'Start recording', exact: true }).click()
+  await page.getByRole('button', { name: 'Stop & save', exact: true }).click()
+  await expect(page.getByText(/Replay not saved:/)).toBeVisible()
+  await page.evaluate(async () =>
+    (await import('/src/storage/db.js')).userDelete('replays', 'audit-replay-0')
+  )
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const { replay } = await import('/src/state/sessionRuntime.js')
+          const rows = await (await import('/src/storage/db.js')).userRecords('replays')
+          return rows.length === 20 && rows.some(row => row.id === replay.session.id)
+        }),
+      { timeout: 15000 }
+    )
+    .toBe(true)
+  await expect(page.getByText(/Replay not saved:/)).toHaveCount(0)
+  await page.getByRole('button', { name: 'Refresh saved sessions', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Load replay', exact: true })).toHaveCount(20)
+  results.push(
+    'Full replay-store autosave failure recovers after freeing a slot; durable count remains 20: PASS'
+  )
   expect(errors).toEqual([])
 } finally {
   writeFileSync(

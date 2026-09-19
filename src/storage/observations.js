@@ -1,3 +1,4 @@
+import { isValidSimulations } from '../layers/seismicSim/schema.js'
 import { isValidMarkerCollection } from './markerSchema.js'
 import { userRecords, userPut, userDelete } from './db.js'
 export const OBSERVATION_VERSION = 1
@@ -44,20 +45,7 @@ export function validateWorkspace(w) {
     !w.datasets.every(d => d && typeof d.id === 'string' && d.historicalSnapshot === false)
   )
     fail()
-  if (
-    !Array.isArray(w.simulations) ||
-    w.simulations.length > 100 ||
-    !w.simulations.every(
-      e =>
-        e &&
-        finite(e.lon, -180, 180) &&
-        finite(e.lat, -90, 90) &&
-        finite(e.mag, 0, 12) &&
-        finite(e.depthKm, 0, 1000) &&
-        finite(e.originMs, -8e15, 8e15)
-    )
-  )
-    fail()
+  if (!isValidSimulations(w.simulations)) fail()
   if (
     !Array.isArray(w.cascades) ||
     w.cascades.length > 20 ||

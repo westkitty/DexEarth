@@ -1,4 +1,10 @@
 import {
+  setSavedMarkers,
+  getSavedMarkers,
+  rememberSavedMarker,
+  forgetSavedMarker,
+} from '../../state/savedMarkers.js'
+import {
   MAX_MARKERS,
   validateMarkerDraft,
   isValidMarkerCollection,
@@ -79,10 +85,17 @@ export const markersLayer = {
     this.deactivate()
     _viewer = viewer
     const generation = _generation
-    const stored = await markersGetAll()
-    if (generation !== _generation || _viewer !== viewer || viewer.isDestroyed?.()) return
-    _markers = stored || []
-    _markers.forEach(_addEntityForMarker)
+    try {
+      const stored = await markersGetAll()
+      if (generation !== _generation || _viewer !== viewer || viewer.isDestroyed?.()) return
+      setSavedMarkers(stored)
+      _markers = getSavedMarkers()
+      _markers.forEach(_addEntityForMarker)
+      _notifyChange()
+    } catch (error) {
+      if (generation === _generation) this.deactivate()
+      throw error
+    }
   },
 
   deactivate() {
@@ -110,12 +123,14 @@ export const markersLayer = {
     if (_markers.length + _pendingAdds >= MAX_MARKERS)
       throw new Error('Marker limit: 500. Remove a marker before adding another.')
     const generation = _generation
+    const persistent = !_snapshotMode
     _pendingAdds++
     try {
-      const id = _snapshotMode
+      const id = !persistent
         ? `snapshot-${crypto.randomUUID()}`
         : await markerAdd({ lon, lat, title, tags, notes, severity })
       const marker = { id, lon, lat, title, tags, notes, severity, createdAt: Date.now() }
+      if (persistent) rememberSavedMarker(marker)
       if (generation !== _generation) return marker
       _markers.push(marker)
       _addEntityForMarker(marker)
@@ -132,7 +147,10 @@ export const markersLayer = {
     const idx = _markers.findIndex(m => m.id === id)
     if (idx < 0) return
     const updated = validateMarkerDraft({ ..._markers[idx], ...updates, id })
-    if (!_snapshotMode) await markerUpdate(updated)
+    if (!_snapshotMode) {
+      await markerUpdate(updated)
+      rememberSavedMarker(updated)
+    }
     if (generation !== _generation) return
     _markers[idx] = updated
     _removeEntityForMarker(id)
@@ -142,7 +160,10 @@ export const markersLayer = {
 
   async deleteMarker(id) {
     const generation = _generation
-    if (!_snapshotMode) await markerDelete(id)
+    if (!_snapshotMode) {
+      await markerDelete(id)
+      forgetSavedMarker(id)
+    }
     if (generation !== _generation) return
     _markers = _markers.filter(m => m.id !== id)
     _removeEntityForMarker(id)

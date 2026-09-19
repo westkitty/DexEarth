@@ -185,7 +185,7 @@ Read [the format, architecture and limitations guide](docs/orbital-observations-
 and [OPERATIONAL_STATE.md](OPERATIONAL_STATE.md) for verified evidence and limitations.
 The [requirement-by-requirement audit](docs/requirements-verification.md) records
 what was actually checked, the fixes found, and remaining live-source/device limits.
-The latest requirement recheck passes 161 tests plus both browser suites; browser
+The latest iterative verification passes 195 tests plus both browser suites; browser
 emulation and fixture-backed integrations do not establish live-source freshness.
 
 ---

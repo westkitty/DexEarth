@@ -1,3 +1,5 @@
+import { getSavedMarkers } from './savedMarkers.js'
+export { setSavedMarkers } from './savedMarkers.js'
 import * as Cesium from 'cesium'
 import * as tc from './timeController.js'
 import { getOrbitState, updateOrbit } from './orbitStore.js'
@@ -17,13 +19,9 @@ import { validateWorkspace } from '../storage/observations.js'
 import { withoutRecording, emitSessionEvent } from './sessionEvents.js'
 let context = null
 let lastApplied = ''
-let savedMarkers = []
 export function configureWorkspace(value) {
   if (context?.viewer !== value?.viewer) lastApplied = ''
   context = value
-}
-export function setSavedMarkers(markers) {
-  savedMarkers = markers
 }
 export function captureWorkspace() {
   if (!context?.viewer || context.viewer.isDestroyed()) throw new Error('Globe not ready')
@@ -50,7 +48,9 @@ export function captureWorkspace() {
       showGround: o.showGround,
       watchIds: o.watchSubset || o.watchlist.map(w => w.id),
     },
-    markers: structuredClone(markersLayer.isActive() ? markersLayer.getMarkers() : savedMarkers),
+    markers: structuredClone(
+      markersLayer.isActive() ? markersLayer.getMarkers() : getSavedMarkers()
+    ),
     overlays: {
       borders: overlays.borders,
       labels: overlays.labels,

@@ -196,7 +196,7 @@ marker storage operations cannot overwrite a newly restored snapshot or populate
 an unloaded viewer; already-requested persistent writes still finish in storage.
 The original seven test files were also rerun separately (all 77 tests pass).
 
-The latest requirement recheck passes **161 tests in 20 files**, plus both browser
+The preceding requirement recheck passed **161 tests in 20 files**, plus both browser
 suites and a separate rerun of all 77 original tests. Marker coordinates must be
 finite and within longitude ±180° / latitude ±90°. Authored titles are 1–500
 characters; notes up to 10,000; optional tags are an array of up to 100 strings,
@@ -206,3 +206,20 @@ rejected before restoration. String marker IDs are nonempty and at most 100
 characters. Pending local adds reserve capacity at the 500-marker limit.
 Marker form errors retain entered values so they can be corrected; these checks
 do not delete or automatically repair arbitrary pre-existing corrupt records.
+
+The latest iterative verification passes **195 tests in 24 files** plus both
+browser suites; its final pass found no additional defects in the tested scope.
+Authored-record insertion capacity is transactional: 100 observations, 100
+watchlisted satellites, 20 replays and 500 marker additions. Updates at capacity
+still work. Replay autosave reports failed writes, retries every five seconds,
+and clears its warning only after successful persistence. Export important data
+if storage remains unavailable.
+
+Legacy markers with invalid fields, colliding IDs or beyond the display cap are
+excluded from rendering/capture with a timeline warning; original records remain
+in storage. Authored-marker capture stays available when the layer is hidden,
+without being replaced by temporary snapshot edits. Manual seismic inputs use
+longitude ±180°, latitude ±90°, magnitude 0–12 and depth 0–1000 km; invalid values
+are rejected before recording or rendering. Time Controller rejects invalid
+clock/speed/step values without changing valid state. These checks are not a
+claim of universal correctness across untested devices or external services.

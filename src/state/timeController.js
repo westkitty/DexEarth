@@ -3,6 +3,8 @@ import { emitSessionEvent } from './sessionEvents.js'
 // Single source of truth for app time. Supports LIVE, MANUAL, and REPLAY modes.
 // All time-dependent Phase II layers consume this.
 
+const MAX_TIME_MS = 8e15
+const validTime = ms => Number.isFinite(ms) && Math.abs(ms) <= MAX_TIME_MS
 const MODES = { LIVE: 'LIVE', MANUAL: 'MANUAL', REPLAY: 'REPLAY' }
 
 let _mode = MODES.LIVE
@@ -37,9 +39,9 @@ function _startReplay() {
   _replayLastWall = Date.now()
   const tick = () => {
     const now = Date.now()
-    const wallDt = now - _replayLastWall
+    const wallDt = Math.max(0, now - _replayLastWall)
     _replayLastWall = now
-    _replayTimeMs += wallDt * _replaySpeed
+    _replayTimeMs = Math.min(MAX_TIME_MS, _replayTimeMs + wallDt * _replaySpeed)
     _notify()
     _replayRafId = requestAnimationFrame(tick)
   }
@@ -60,7 +62,7 @@ export function getTimeMs() {
 
 export function setMode(mode) {
   const previousTime = getTimeMs()
-  if (!MODES[mode]) throw new Error(`Unknown mode: ${mode}`)
+  if (!Object.hasOwn(MODES, mode)) throw new Error(`Unknown mode: ${mode}`)
   _stopReplay()
   if (mode === MODES.LIVE) {
     _manualTimeMs = Date.now()
@@ -78,6 +80,7 @@ export function setMode(mode) {
 }
 
 export function setManualTime(ms) {
+  if (!validTime(ms)) return false
   _manualTimeMs = ms
   _replayTimeMs = ms
   emitSessionEvent('time', { mode: _mode, timeMs: ms })
@@ -85,8 +88,10 @@ export function setManualTime(ms) {
 }
 
 export function setReplaySpeed(speed) {
+  if (!Number.isFinite(speed) || speed < 0 || speed > 1000) return false
   _replaySpeed = speed
   emitSessionEvent('time-speed', { speed })
+  _notify()
 }
 
 export function getReplaySpeed() {
@@ -94,6 +99,7 @@ export function getReplaySpeed() {
 }
 
 export function step(offsetMs) {
+  if (!Number.isFinite(offsetMs) || !validTime(getTimeMs() + offsetMs)) return false
   if (_mode !== MODES.MANUAL) setMode(MODES.MANUAL)
   setManualTime(getTimeMs() + offsetMs)
 }
@@ -107,6 +113,7 @@ export function resetToNow() {
 }
 
 export function setStepSize(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) return false
   _stepSizeMs = ms
 }
 export function getStepSize() {
@@ -136,6 +143,7 @@ export { MODES }
 
 // Replay sessions own their clock; no independent RAF may race pause/scrub.
 export function setSessionTime(ms) {
+  if (!validTime(ms)) return false
   _stopReplay()
   _mode = MODES.REPLAY
   _replayTimeMs = ms

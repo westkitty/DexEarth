@@ -1,3 +1,4 @@
+import { isValidSimulation, isValidSimulations } from './schema.js'
 import { emitSessionEvent } from '../../state/sessionEvents.js'
 import { getTimeMs } from '../../state/timeController.js'
 // ─── Seismic Simulation Layer ─────────────────────────────────────────────────
@@ -145,7 +146,7 @@ export const seismicSimLayer = {
       depthKm: Number(depthKm),
       originMs: Number(originMs),
     }
-    if (_events.length >= 100) return null
+    if (_events.length >= 100 || !isValidSimulation(ev)) return null
     _events.push(ev)
     emitSessionEvent('seismic', { events: _events }, 'LOCAL SIMULATION')
     pulseHud('seismic', `M${ev.mag} @ ${lon.toFixed(1)},${lat.toFixed(1)}`)
@@ -163,6 +164,7 @@ export const seismicSimLayer = {
   },
 
   restoreEvents(events) {
+    if (!isValidSimulations(events)) throw new Error('Invalid simulated seismic events')
     _events = structuredClone(events)
     if (_lines) _renderAll(getTimeMs())
   },

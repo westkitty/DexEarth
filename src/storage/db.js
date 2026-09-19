@@ -99,6 +99,46 @@ function _promisify(req) {
   })
 }
 
+// Read count/existence and write in ONE readwrite transaction. IndexedDB
+// serializes overlapping transactions, including those from other tabs.
+async function writeBounded(storeName, record, limit, addOnly = false) {
+  const snapshot = structuredClone(record)
+  const objectStore = await _tx(storeName, 'readwrite')
+  return new Promise((resolve, reject) => {
+    const tx = objectStore.transaction
+    let failure, result
+    tx.oncomplete = () => resolve(addOnly ? result : snapshot)
+    tx.onerror = tx.onabort = () =>
+      reject(failure || tx.error || new Error('Storage transaction aborted'))
+    const write = () => {
+      const request = addOnly ? objectStore.add(snapshot) : objectStore.put(snapshot)
+      request.onsuccess = () => {
+        result = request.result
+      }
+    }
+    const checkCount = () => {
+      const count = objectStore.count()
+      count.onsuccess = () => {
+        if (count.result >= limit) {
+          failure = new Error(
+            `Limit: ${limit} ${storeName} records; delete a record before adding another`
+          )
+          tx.abort()
+        } else write()
+      }
+    }
+    if (!Number.isFinite(limit)) write()
+    else if (addOnly) checkCount()
+    else {
+      const existing = objectStore.get(snapshot.id)
+      existing.onsuccess = () => {
+        if (existing.result !== undefined) write()
+        else checkCount()
+      }
+    }
+  })
+}
+
 // ── cache store ──────────────────────────────────────────────────────────────
 
 export async function cacheGet(key) {
@@ -129,8 +169,7 @@ export async function markersGetAll() {
 }
 
 export async function markerAdd(marker) {
-  const store = await _tx(STORES.markers, 'readwrite')
-  return _promisify(store.add({ ...marker, createdAt: Date.now() }))
+  return writeBounded(STORES.markers, { ...marker, createdAt: Date.now() }, 500, true)
 }
 
 export async function markerUpdate(marker) {
@@ -221,13 +260,8 @@ export async function userRecords(store) {
 }
 export async function userPut(store, record) {
   if (!USER_STORES.has(store)) throw new Error('Not a user store')
-  const objectStore = await _tx(store, 'readwrite')
-  return new Promise((resolve, reject) => {
-    const tx = objectStore.transaction
-    objectStore.put(record)
-    tx.oncomplete = () => resolve(record)
-    tx.onerror = tx.onabort = () => reject(tx.error || new Error('Storage transaction aborted'))
-  })
+  const limits = { observations: 100, watchlist: 100, replays: 20 }
+  return writeBounded(store, record, limits[store] ?? Infinity)
 }
 export async function userDelete(store, id) {
   if (!USER_STORES.has(store)) throw new Error('Not a user store')

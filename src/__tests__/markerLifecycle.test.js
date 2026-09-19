@@ -156,3 +156,40 @@ it('reserves the last marker slot before concurrent asynchronous writes', async 
   }
   expect(markersLayer.getMarkers()).toHaveLength(500)
 })
+
+it('does not render corrupt/duplicate legacy markers or mutate the retained records', async () => {
+  const v = viewer()
+  const stored = [
+    saved,
+    { ...saved, id: '1' },
+    { ...saved, id: 2, tags: [null] },
+    { ...saved, id: 3, lat: NaN },
+  ]
+  const original = structuredClone(stored)
+  markersGetAll.mockResolvedValueOnce(stored)
+  await markersLayer.activate({ viewer: v })
+  expect(markersLayer.getMarkers()).toEqual([saved])
+  expect(v.ids()).toEqual(['marker_1'])
+  expect(stored).toEqual(original)
+  expect(markerDelete).not.toHaveBeenCalled()
+})
+it('bounds legacy displayed markers without deleting excess authored records', async () => {
+  const v = viewer()
+  const stored = Array.from({ length: 502 }, (_, id) => ({ ...saved, id }))
+  markersGetAll.mockResolvedValueOnce(stored)
+  await markersLayer.activate({ viewer: v })
+  expect(markersLayer.getMarkers()).toHaveLength(500)
+  expect(v.ids()).toHaveLength(500)
+  expect(stored).toHaveLength(502)
+  expect(markerDelete).not.toHaveBeenCalled()
+})
+it('can retry activation after a storage failure instead of remaining falsely active', async () => {
+  const v = viewer()
+  markersGetAll
+    .mockRejectedValueOnce(new Error('Storage interrupted'))
+    .mockResolvedValueOnce([saved])
+  await expect(markersLayer.activate({ viewer: v })).rejects.toThrow('Storage interrupted')
+  expect(markersLayer.isActive()).toBe(false)
+  await markersLayer.activate({ viewer: v })
+  expect(markersLayer.getMarkers()).toEqual([saved])
+})

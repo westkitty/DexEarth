@@ -91,13 +91,13 @@ local wrapper/private paths are excluded from formatting.
   Browser CDN installation was blocked; an npm-distributed Chromium binary and
   its packaged libraries enabled validation without adding a production dependency.
 
-Latest complete recheck on 2026-09-19 (published baseline `f6999e0`):
+Latest iterative verification on 2026-09-19 (baseline `e9f02e6`):
 
 | Command                                                   | Result                                                     |
 | --------------------------------------------------------- | ---------------------------------------------------------- |
 | `npm run lint`                                            | PASS                                                       |
 | `npm run format:check`                                    | PASS                                                       |
-| `npm run test:run`                                        | PASS — 161 tests, 20 files (all original 77 preserved)     |
+| `npm run test:run`                                        | PASS — 195 tests, 24 files (all original 77 preserved)     |
 | `npm run build`                                           | PASS — non-failing existing dynamic/static import warnings |
 | `npm run ci`                                              | PASS                                                       |
 | `npm run test:browser` (configured Chromium path)         | PASS — all smoke checks, zero page errors                  |
@@ -208,7 +208,7 @@ and optional authenticated FIRMS remain unverified, not silently marked passed.
 The final delivery report gives the new commit and matching remote SHA on
 `arena/01a0b75b-dexearth`; master is untouched.
 
-## Latest complete requirement recheck
+## Previous complete requirement recheck (delivered as `e9f02e6`)
 
 Remote `f6999e0` was confirmed first. Restored local Git metadata pointed at the
 initial baseline, but comparison of all 158 published files found zero content
@@ -237,3 +237,38 @@ not a project dependency. All previous physical-device, sustained FPS, genuine
 upstream freshness and optional authenticated FIRMS limitations still apply.
 Final commit and remote SHA equality are reported after explicit-path staging,
 commit and non-force push to the fixed session branch. Master remains untouched.
+
+## Latest iterative verification
+
+Started clean at matching local/remote `e9f02e6`; checkpoint
+`checkpoint-iterative-e9f02e6` preceded edits. Three review/test passes:
+
+1. Confirmed and fixed capacity races, premature replay-save acknowledgement,
+   failed marker-load retry, and corrupt/excess legacy markers reaching captures
+   or rendering. Capacity checks and inserts share an IndexedDB transaction.
+   Autosave retries at five-second intervals and clears its warning after commit.
+   Safe authored-marker state survives layer deactivation and stays separate from
+   temporary observation/replay edits. Omitted legacy records remain stored with
+   an explicit warning; no user data is automatically deleted or repaired.
+2. Confirmed and fixed invalid manual simulation/time/speed/step values entering
+   recordable state. Shared simulation validation, recoverable form errors,
+   bounded clock progression and proper controlled-slider props added.
+3. Additional independent-connection, failure, capacity and snapshot-isolation
+   tests plus full CI and both browser suites found no additional defects in
+   the reviewed/tested scope. This is not a universal bug-free guarantee.
+
+**195 tests / 24 files pass**, 34 new cases. All 77 original tests also pass in
+an independent seven-file rerun. Lint, formatting, build and full local CI pass.
+Production offline/workflow/responsive/Safe Mode checks and expanded fixture
+layer/overlay/analysis/BroadcastChannel checks pass, with zero page errors or
+detected render-stop errors. Real UI checks include simulation input rejection,
+legacy marker warnings with preserved storage, and autosave recovery from a full
+replay store after freeing a slot (durable count stays 20).
+
+Current evidence: `/home/user/dexearth-iterative-evidence/`; command logs:
+`/home/user/dexearth-iterative-*.log`, outside Git. Application JS 442.20 kB /
+142.40 kB gzip, excluding Cesium/assets. Existing mixed-import build warnings
+remain non-fatal. Dependencies and protected paths are unchanged. Physical device,
+FPS, genuine remote freshness and optional authenticated FIRMS limits remain.
+Commit/non-force push and independent SHA verification are reported separately
+for `arena/01a0b75b-dexearth`; master is not changed.

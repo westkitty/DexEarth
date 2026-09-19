@@ -37,6 +37,7 @@ const S = {
 
 export default function SeismicSimPanel({ viewer }) {
   const [isActive, setIsActive] = useState(seismicSimLayer.isActive)
+  const [error, setError] = useState('')
   const [events, setEvents] = useState(seismicSimLayer.getEvents)
   const [lon, setLon] = useState('143.0')
   const [lat, setLat] = useState('37.5')
@@ -62,15 +63,20 @@ export default function SeismicSimPanel({ viewer }) {
 
   const addEvent = useCallback(
     preset => {
+      setError('')
+      if (!preset && [lon, lat, mag, depth].some(value => !value.trim())) {
+        setError('All simulation fields are required.')
+        return
+      }
       const params = preset
         ? typeof PRESETS[preset] === 'function'
           ? PRESETS[preset]()
           : PRESETS[preset]
         : {
-            lon: parseFloat(lon),
-            lat: parseFloat(lat),
-            mag: parseFloat(mag),
-            depthKm: parseFloat(depth),
+            lon: Number(lon),
+            lat: Number(lat),
+            mag: Number(mag),
+            depthKm: Number(depth),
             originMs: tc.getTimeMs(),
           }
       if (!isActive) return
@@ -78,6 +84,10 @@ export default function SeismicSimPanel({ viewer }) {
         ...params,
         originMs: params.originMs ?? tc.getTimeMs(),
       })
+      if (!ev)
+        setError(
+          'Invalid simulation or 100-event limit reached. Use longitude ±180°, latitude ±90°, magnitude 0–12, depth 0–1000 km.'
+        )
       setEvents(seismicSimLayer.getEvents())
       return ev
     },
@@ -91,6 +101,7 @@ export default function SeismicSimPanel({ viewer }) {
 
   return (
     <div style={{ ...S.panel, position: 'relative' }}>
+      {error && <p role="alert">{error}</p>}
       <div
         style={{
           ...S.label,
@@ -135,16 +146,27 @@ export default function SeismicSimPanel({ viewer }) {
           <div style={{ ...S.row, flexWrap: 'wrap', gap: '4px' }}>
             <div>
               <div style={S.label}>Lon</div>
-              <input style={S.input} value={lon} onChange={e => setLon(e.target.value)} />
+              <input
+                aria-label="Simulation longitude"
+                style={S.input}
+                value={lon}
+                onChange={e => setLon(e.target.value)}
+              />
             </div>
             <div>
               <div style={S.label}>Lat</div>
-              <input style={S.input} value={lat} onChange={e => setLat(e.target.value)} />
+              <input
+                aria-label="Simulation latitude"
+                style={S.input}
+                value={lat}
+                onChange={e => setLat(e.target.value)}
+              />
             </div>
             <div>
               <div style={S.label}>M</div>
               <input
                 style={{ ...S.input, width: '40px' }}
+                aria-label="Simulation magnitude"
                 value={mag}
                 onChange={e => setMag(e.target.value)}
               />
@@ -153,6 +175,7 @@ export default function SeismicSimPanel({ viewer }) {
               <div style={S.label}>Depth(km)</div>
               <input
                 style={{ ...S.input, width: '50px' }}
+                aria-label="Simulation depth km"
                 value={depth}
                 onChange={e => setDepth(e.target.value)}
               />
