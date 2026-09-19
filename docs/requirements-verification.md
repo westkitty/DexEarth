@@ -11,7 +11,62 @@ rendering collections and tests, not just the previous delivery summary.
 - **Not applicable here**: an original Mac/master instruction cannot apply to
   this hosted, fixed-branch checkout. This is not a claim it was executed on Mac.
 
-## Latest iterative verification (baseline `e9f02e6`)
+## Current release audit (baseline `17f11cb`)
+
+Started clean with matching local/remote `17f11cbb2f2858952923358210915b862e6a2b02`;
+checkpoint `checkpoint-release-17f11cb` preceded edits. The section-by-section
+requirement matrix below remains the scope checklist, including explicit
+Mac/master, live-source and physical-device exceptions.
+
+**Review/fix passes:** nine initial regression failures exposed watchlist
+lost-update/deletion/epoch problems, unsafe durable watch/observer records,
+understated cache byte accounting, non-string cache keys and destructive failed
+recording startup. Three additional failing cases exposed premature transaction
+success acknowledgement, generated marker IDs colliding with legacy string IDs,
+and incorrect hour/minute age formatting. Those confirmed defects were fixed:
+
+- Watchlist mutations are serialized locally and use atomic IndexedDB
+  read/modify/write against the persisted row. Nickname edits retain newer TLEs;
+  refresh preserves concurrent nicknames, selects the newest duplicate input,
+  and cannot recreate deleted entries. Invalid durable watch/observer records
+  are excluded with a visible warning and remain in storage. The inspector's
+  saved-marker observer choices also exclude malformed legacy marker records.
+- Remote cache budgeting measures serialized payload size rather than trusting
+  an understated/invalid byte hint; custom imports and authored views remain
+  excluded from eviction. Hour/minute labels now use whole hours, not rounded-up
+  hours plus the original remainder.
+- Recording startup validates its capture before replacing the previous session
+  or stopping playback. A failed start preserves exportable local work.
+- Legacy write wrappers now wait for transaction completion and reject aborts
+  that occur after an individual request succeeds. Generated numeric marker IDs
+  skip retained string aliases without deleting the legacy records.
+
+**Clean validation passes:** added tests for separate connections, failed update
+recovery, duplicate TLE input, multiple marker aliases and generated cache-budget
+fixtures all passed without another source change. Full local CI and both browser
+suites then passed on the same application revision. The expanded browser audit
+checks watchlist epoch/nickname preservation, deletion, and corrupt-record
+warnings without erasure. **No additional defects were found in these final
+passes. This is evidence of tested correctness, not proof of universal absence
+of bugs.**
+
+Current results: **220 tests / 25 files**, including 25 new release-audit cases;
+all **77 original tests** pass in their separate seven-file rerun. Lint,
+formatting, production build and full local CI pass. Both browser suites have
+zero page errors; the layer audit also detects Cesium render-stop errors.
+The original offline, four-viewport, Safe Mode, layer/overlay/analysis/channel
+checks were rerun, not inherited from a previous report.
+
+Evidence: `/home/user/dexearth-release-evidence/`; logs:
+`/home/user/dexearth-release-*.log`, outside Git. Application JS 444.70 kB /
+143.17 kB gzip, excluding Cesium/assets. Existing mixed-import warnings remain
+non-fatal. No dependency, private configuration or Mac-wrapper changes.
+Physical-device performance, sustained FPS, genuine upstream freshness and
+optional authenticated FIRMS success remain unverified. Final explicit staging,
+commit/non-force push and independent SHA equality are reported separately for
+`arena/01a0b75b-dexearth`; master is untouched and local CI is not hosted CI.
+
+## Previous iterative verification (baseline `e9f02e6`)
 
 Started with clean, matching local/remote `e9f02e6b19b9cf64672c693f1fe0a4ec3c204da7`;
 checkpoint `checkpoint-iterative-e9f02e6` preceded edits. This request was handled
@@ -231,7 +286,7 @@ self-referential commit hash in this document. No master update is claimed.
 | **2C. Ground track**             | Verified                                | Ground projection at surface altitude, antimeridian/gap splitting, selected point emphasis and white current-sample cross. Same selected-only sample bounds; no per-layer track explosion. Pure bounds/dateline tests and browser path rendering. Cross/track follows the path refresh cadence, not sub-second precision tracking.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | **2D. Orbital filters**          | Verified                                | LEO/MEO/GEO/OTHER, name/catalog search, altitude and inclination bands, watchlist subset. Paired bounds stay ordered during recording and observation capture; regression and production browser checks cover crossed ranges. Selected object is prioritized. GEO means near-geosynchronous, not proof of stationary or military status.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | **2E. Pass prediction**          | Verified / prediction limits            | `predictPasses`, stored observer coordinates or chosen saved marker, identity, start/peak/set UTC times, maximum elevation and duration. UI requests 24h above 10°, 30-second sampling; helper bounded at 48h/32 windows. Browser results and deterministic unit test. Explicitly current-TLE predictions, not official tracking or optical visibility.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| **3. Durable watchlist**         | Verified                                | Dedicated IDB `watchlist` store; add/remove/nickname, jump, cached-element propagation/age, next-pass computation at saved observer. Tests reinitialize the store, retain nickname/observer through cache clearing and refuse replacement by an older epoch. Browser reload preserves watchlist. No account sync.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **3. Durable watchlist**         | Verified                                | Dedicated IDB `watchlist` store; add/remove/nickname, jump, cached-element propagation/age, next-pass computation at saved observer. Tests reinitialize the store, retain nickname/observer through cache clearing and use atomic persisted-row updates to preserve newer epochs/concurrent nicknames and avoid recreating deletions. Browser reload preserves watchlist. No account sync.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | **4. Saved observations**        | Verified / view-snapshot scope          | Version-1 schema, local CRUD, metadata/notes, camera, primary toggles, controller time/mode/speed, selected satellite/watch subset/filter/path state, markers, overlay visibility/preset, local simulation/cascade state and dataset references. Browser covers save/load/duplicate/rename/confirmed delete/export/import/corrupt refusal. Restoration unit checks camera/layers/time and unchanged active-data timestamps. Marker snapshots are temporary, not destructive imports; safe authored-marker capture stays current across layer unloads, while corrupt legacy records remain stored with a display warning; generation guards reject stale load/write render completions and normalized marker IDs cannot collide; shared marker validation rejects unsafe metadata before restore. Does not freeze remote data or resume cinematic animation/retain a precomputed threat grid. |
 | **5. Offline catalog/startup**   | Verified / installation qualification   | All six states in `datasetStatus`, source/fetch/age/TTL/fallback/active-origin UI. Bundled globe/borders/TLE, persisted local records and permitted remote caches. Production browser fully disconnected, reloaded and accessed saved observation/watchlist. Initial installation or local server is required; no first-visit-offline claim. Bundled assets never receive invented remote fetch times.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | **6. Bounded cache**             | Verified                                | Record v2, source TTL, last-use, 24-record/32-MiB payload budget, soft retention preferences, individual/all remote clear. Startup also evicts oversized legacy cache. IDB v2→v3 migration moves legacy views out of cache. Tests verify expiration/fallback, eviction and user-data preservation; clearing cannot delete user stores. Active in-memory datasets may remain visible until unload/reload.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |

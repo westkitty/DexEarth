@@ -69,12 +69,11 @@ export class ReplayController {
     })
   }
   start(name = 'Local session') {
-    this.pause()
-    this.recording = true
-    this.position = 0
-    this.cursor = -1
-    this.bytes = 0
-    this.session = {
+    // Prepare and validate before replacing any exportable session or stopping
+    // playback. A failed capture must not destroy the user's previous work.
+    const workspace = structuredClone(this.capture())
+    const entry = { seq: 0, offset: 0, type: 'start', category: 'LOCAL INTERACTION', workspace }
+    const session = validateReplay({
       format: 'DexEarth.Replay',
       version: 1,
       id: crypto.randomUUID(),
@@ -82,18 +81,14 @@ export class ReplayController {
       startedAt: this.now(),
       duration: 0,
       externalData: 'references-only',
-      events: [],
-    }
-    try {
-      this.record({ type: 'start', category: 'LOCAL INTERACTION' })
-      if (!this.session.events.length)
-        throw new Error('Initial workspace exceeds the replay size limit')
-    } catch (error) {
-      this.recording = false
-      this.session = null
-      this.onChange()
-      throw error
-    }
+      events: [entry],
+    })
+    const bytes = new Blob([JSON.stringify(entry)]).size
+    if (bytes > MAX_IMPORT_BYTES - 4096)
+      throw new Error('Initial workspace exceeds the replay size limit')
+    this.pause()
+    Object.assign(this, { recording: true, position: 0, cursor: -1, bytes, session })
+    this.onChange()
   }
   record(event) {
     if (!this.recording) return

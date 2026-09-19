@@ -94,26 +94,51 @@ function _tx(storeName, mode = 'readonly') {
 
 function _promisify(req) {
   return new Promise((resolve, reject) => {
-    req.onsuccess = e => resolve(e.target.result)
+    const tx = req.transaction
+    if (tx?.mode === 'readwrite') {
+      let result
+      req.onsuccess = e => {
+        result = e.target.result
+      }
+      tx.addEventListener('complete', () => resolve(result), { once: true })
+      tx.addEventListener(
+        'abort',
+        () => reject(tx.error || new Error('Storage transaction aborted')),
+        { once: true }
+      )
+    } else req.onsuccess = e => resolve(e.target.result)
     req.onerror = e => reject(e.target.error)
   })
 }
 
 // Read count/existence and write in ONE readwrite transaction. IndexedDB
 // serializes overlapping transactions, including those from other tabs.
-async function writeBounded(storeName, record, limit, addOnly = false) {
-  const snapshot = structuredClone(record)
+async function writeBounded(storeName, record, limit, addOnly = false, transform) {
+  let snapshot = structuredClone(record)
   const objectStore = await _tx(storeName, 'readwrite')
   return new Promise((resolve, reject) => {
     const tx = objectStore.transaction
-    let failure, result
-    tx.oncomplete = () => resolve(addOnly ? result : snapshot)
+    let failure,
+      result,
+      skipped = false
+    tx.oncomplete = () => resolve(skipped ? undefined : addOnly ? result : snapshot)
     tx.onerror = tx.onabort = () =>
       reject(failure || tx.error || new Error('Storage transaction aborted'))
     const write = () => {
       const request = addOnly ? objectStore.add(snapshot) : objectStore.put(snapshot)
       request.onsuccess = () => {
         result = request.result
+        if (addOnly && snapshot.id === undefined && Number.isInteger(result)) {
+          // Old imports may have string keys such as "1". Cesium/snapshots use
+          // string identity, so skip those keys without changing legacy data.
+          const alias = objectStore.get(String(result))
+          alias.onsuccess = () => {
+            if (alias.result !== undefined) {
+              objectStore.delete(result)
+              write()
+            }
+          }
+        }
       }
     }
     const checkCount = () => {
@@ -127,13 +152,29 @@ async function writeBounded(storeName, record, limit, addOnly = false) {
         } else write()
       }
     }
-    if (!Number.isFinite(limit)) write()
+    if (!Number.isFinite(limit) && !transform) write()
     else if (addOnly) checkCount()
     else {
       const existing = objectStore.get(snapshot.id)
       existing.onsuccess = () => {
-        if (existing.result !== undefined) write()
-        else checkCount()
+        try {
+          if (transform) {
+            const id = snapshot.id
+            snapshot = transform(existing.result)
+            if (snapshot === undefined) {
+              skipped = true
+              return
+            }
+            if (!snapshot || snapshot.id !== id || typeof snapshot.then === 'function')
+              throw new Error('User update must synchronously preserve its record ID')
+            snapshot = structuredClone(snapshot)
+          }
+          if (existing.result !== undefined || !Number.isFinite(limit)) write()
+          else checkCount()
+        } catch (error) {
+          failure = error
+          tx.abort()
+        }
       }
     }
   })
@@ -254,14 +295,21 @@ export async function viewDelete(id) {
 
 // User-authored stores can never be passed through remote-cache eviction APIs.
 const USER_STORES = new Set(['observations', 'watchlist', 'replays', 'preferences'])
+const USER_LIMITS = { observations: 100, watchlist: 100, replays: 20 }
 export async function userRecords(store) {
   if (!USER_STORES.has(store)) throw new Error('Not a user store')
   return _promisify((await _tx(store)).getAll())
 }
 export async function userPut(store, record) {
   if (!USER_STORES.has(store)) throw new Error('Not a user store')
-  const limits = { observations: 100, watchlist: 100, replays: 20 }
-  return writeBounded(store, record, limits[store] ?? Infinity)
+  return writeBounded(store, record, USER_LIMITS[store] ?? Infinity)
+}
+// Atomic read/modify/write. Return undefined to leave a missing or current row
+// untouched. A refresh can therefore never resurrect a deleted authored record.
+export async function userUpdate(store, id, transform) {
+  if (!USER_STORES.has(store)) throw new Error('Not a user store')
+  if (typeof transform !== 'function') throw new Error('A synchronous update is required')
+  return writeBounded(store, { id }, USER_LIMITS[store] ?? Infinity, false, transform)
 }
 export async function userDelete(store, id) {
   if (!USER_STORES.has(store)) throw new Error('Not a user store')

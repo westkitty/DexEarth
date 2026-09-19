@@ -207,7 +207,7 @@ characters. Pending local adds reserve capacity at the 500-marker limit.
 Marker form errors retain entered values so they can be corrected; these checks
 do not delete or automatically repair arbitrary pre-existing corrupt records.
 
-The latest iterative verification passes **195 tests in 24 files** plus both
+The previous iterative verification passed **195 tests in 24 files** plus both
 browser suites; its final pass found no additional defects in the tested scope.
 Authored-record insertion capacity is transactional: 100 observations, 100
 watchlisted satellites, 20 replays and 500 marker additions. Updates at capacity
@@ -223,3 +223,14 @@ longitude ±180°, latitude ±90°, magnitude 0–12 and depth 0–1000 km; inva
 are rejected before recording or rendering. Time Controller rejects invalid
 clock/speed/step values without changing valid state. These checks are not a
 claim of universal correctness across untested devices or external services.
+
+The current release audit passes **220 tests in 25 files** plus both browser
+suites, with no additional defects found in its final validation passes. Watchlist
+refresh/nickname changes use atomic persisted-row updates: newer elements and
+concurrent nickname edits are retained, and refresh never recreates deleted
+entries. Malformed legacy watch/observer records are excluded from the inspector
+with a warning, not erased. Failed recording startup preserves the previous
+session. All legacy write wrappers acknowledge commit rather than request success;
+generated marker keys skip legacy string aliases. Cache budgets measure actual
+serialized payload bytes even when stored size metadata is wrong. Hardware and
+live-source limitations remain unchanged.

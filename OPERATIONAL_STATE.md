@@ -91,13 +91,13 @@ local wrapper/private paths are excluded from formatting.
   Browser CDN installation was blocked; an npm-distributed Chromium binary and
   its packaged libraries enabled validation without adding a production dependency.
 
-Latest iterative verification on 2026-09-19 (baseline `e9f02e6`):
+Latest release audit on 2026-09-19 (baseline `17f11cb`):
 
 | Command                                                   | Result                                                     |
 | --------------------------------------------------------- | ---------------------------------------------------------- |
 | `npm run lint`                                            | PASS                                                       |
 | `npm run format:check`                                    | PASS                                                       |
-| `npm run test:run`                                        | PASS — 195 tests, 24 files (all original 77 preserved)     |
+| `npm run test:run`                                        | PASS — 220 tests, 25 files (all original 77 preserved)     |
 | `npm run build`                                           | PASS — non-failing existing dynamic/static import warnings |
 | `npm run ci`                                              | PASS                                                       |
 | `npm run test:browser` (configured Chromium path)         | PASS — all smoke checks, zero page errors                  |
@@ -238,7 +238,7 @@ upstream freshness and optional authenticated FIRMS limitations still apply.
 Final commit and remote SHA equality are reported after explicit-path staging,
 commit and non-force push to the fixed session branch. Master remains untouched.
 
-## Latest iterative verification
+## Previous iterative verification (delivered as `17f11cb`)
 
 Started clean at matching local/remote `e9f02e6`; checkpoint
 `checkpoint-iterative-e9f02e6` preceded edits. Three review/test passes:
@@ -272,3 +272,35 @@ remain non-fatal. Dependencies and protected paths are unchanged. Physical devic
 FPS, genuine remote freshness and optional authenticated FIRMS limits remain.
 Commit/non-force push and independent SHA verification are reported separately
 for `arena/01a0b75b-dexearth`; master is not changed.
+
+## Current release audit
+
+Clean local/remote baseline `17f11cb`; checkpoint `checkpoint-release-17f11cb`.
+Two review/fix rounds confirmed 12 failing regression cases. Fixed watchlist
+lost updates/epoch regression/deletion resurrection, invalid durable watch and
+observer inputs, cache accounting based on untrusted byte hints, cache-key
+robustness, failed recording startup discarding the previous session, write
+acknowledgement before transaction commit, generated marker/string-ID collisions,
+and hour/minute age display rounding.
+
+Watchlist changes now compare with persisted data atomically, not a stale UI
+copy. Invalid legacy records remain stored with warnings. Cache eviction measures
+payloads and still excludes authored/custom data. Recording startup is validated
+before replacing a session. Legacy storage writes wait for commit, and generated
+marker IDs skip existing string aliases without overwriting them.
+
+Subsequent unit/CI and browser validation passes found no further defects within
+the tested scope, without another application source change. **220 tests in 25
+files pass**, including 25 added cases; all **77 original tests** pass in a
+separate rerun. Lint, format, production build, complete local CI and both browser
+suites pass. Fresh browser coverage includes the existing offline/responsive/
+Safe Mode/layer/overlay/channel workflows and new watchlist preservation and
+corrupt-record warning cases. No page errors or detected render-stop errors.
+
+Evidence: `/home/user/dexearth-release-evidence/`; command logs:
+`/home/user/dexearth-release-*.log`, outside Git. Application JS 444.70 kB /
+143.17 kB gzip; Cesium/assets separate. Existing import warnings are non-fatal.
+Dependencies/private paths/Mac wrappers unchanged. Unverified device, FPS,
+upstream freshness and optional authenticated FIRMS paths remain explicitly
+qualified; a clean audit is not a universal bug-free guarantee. Final staging,
+commit/push and matching remote SHA are reported on the fixed Arena branch.

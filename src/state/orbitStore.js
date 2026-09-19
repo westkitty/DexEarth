@@ -1,5 +1,6 @@
+import { validWatchedRecord, validWatchItem, validObserver } from './watchlistValidation.js'
 import { orbitalFacts } from '../layers/satellites/orbital.js'
-import { userRecords, userPut, userDelete } from '../storage/db.js'
+import { userRecords, userPut, userUpdate, userDelete } from '../storage/db.js'
 import { emitSessionEvent } from './sessionEvents.js'
 const listeners = new Set()
 let state = {
@@ -7,6 +8,7 @@ let state = {
   watchSubset: null,
   watchlist: [],
   observer: null,
+  storageWarning: '',
   filters: {
     search: '',
     orbit: 'ALL',
@@ -48,7 +50,7 @@ export function updateOrbitFilter(key, value) {
     minInclination: [0, 180, 'maxInclination'],
     maxInclination: [0, 180, 'minInclination'],
   }
-  const range = ranges[key]
+  const range = Object.hasOwn(ranges, key) ? ranges[key] : null
   if (range) {
     if (!Number.isFinite(value)) return
     const [min, max, other] = range
@@ -63,54 +65,96 @@ export function updateOrbitFilter(key, value) {
   else return
   updateOrbit({ filters })
 }
-export async function initWatchlist() {
-  const [watchlist, preferences] = await Promise.all([
+let watchQueue = Promise.resolve()
+function queueWatch(task) {
+  const pending = watchQueue.then(task)
+  watchQueue = pending.catch(() => {})
+  return pending
+}
+async function reloadWatchlist() {
+  const [rows, preferences] = await Promise.all([
     userRecords('watchlist'),
     userRecords('preferences'),
   ])
-  updateOrbit({ watchlist, observer: preferences.find(p => p.id === 'observer')?.value || null })
-}
-export async function saveObserver(observer) {
-  await userPut('preferences', { id: 'observer', value: observer })
-  updateOrbit({ observer })
-}
-export async function watchSatellite(record, nickname = '') {
-  if (
-    state.watchlist.length >= 100 &&
-    !state.watchlist.some(w => w.id === String(record.satrec.satnum))
-  )
-    throw new Error('Watchlist limited to 100 satellites')
-  const item = {
-    id: String(record.satrec.satnum),
-    name: record.name,
-    nickname: nickname.slice(0, 100),
-    record,
-    savedAt: Date.now(),
-  }
-  await userPut('watchlist', item)
+  const watchlist = rows.filter(validWatchItem).slice(0, 100)
+  const savedObserver = preferences.find(p => p.id === 'observer')?.value
+  const observer = validObserver(savedObserver) ? savedObserver : null
+  const omitted = rows.length - watchlist.length + (savedObserver != null && !observer ? 1 : 0)
   updateOrbit({
-    watchSubset: null,
-    watchlist: [...state.watchlist.filter(w => w.id !== item.id), item],
+    watchlist,
+    observer,
+    storageWarning: omitted
+      ? `${omitted} saved watchlist/observer record(s) not loaded: invalid or over the display limit. Original records remain in local storage.`
+      : '',
   })
 }
-export async function unwatchSatellite(id) {
-  await userDelete('watchlist', id)
-  updateOrbit({ watchlist: state.watchlist.filter(w => w.id !== id) })
+export function initWatchlist() {
+  return queueWatch(reloadWatchlist)
+}
+export async function saveObserver(observer) {
+  if (!validObserver(observer)) throw new Error('Invalid observer coordinates or name')
+  const value = structuredClone(observer)
+  return queueWatch(async () => {
+    await userPut('preferences', { id: 'observer', value })
+    await reloadWatchlist()
+  })
+}
+export async function watchSatellite(record, nickname = '') {
+  if (!validWatchedRecord(record) || typeof nickname !== 'string')
+    throw new Error('Invalid satellite or nickname')
+  const incoming = structuredClone(record),
+    id = String(record.satrec.satnum)
+  return queueWatch(async () => {
+    await userUpdate('watchlist', id, previous => {
+      const chosen =
+        validWatchedRecord(previous?.record) &&
+        orbitalFacts(previous.record).epochMs > orbitalFacts(incoming).epochMs
+          ? previous.record
+          : incoming
+      return {
+        id,
+        name: chosen.name,
+        nickname: nickname.slice(0, 100),
+        record: chosen,
+        savedAt: Number.isFinite(previous?.savedAt) ? previous.savedAt : Date.now(),
+      }
+    })
+    updateOrbit({ watchSubset: null })
+    await reloadWatchlist()
+  })
+}
+export function unwatchSatellite(id) {
+  return queueWatch(async () => {
+    await userDelete('watchlist', id)
+    await reloadWatchlist()
+  })
 }
 
-// Only advance stored elements when the incoming TLE epoch is newer; never stamp
-// an old TLE as newly observed just because the panel was opened.
-export async function refreshWatchedElements(records) {
-  const incoming = new Map(records.map(record => [String(record.satrec.satnum), record]))
-  const changed = []
-  for (const item of state.watchlist) {
-    const record = incoming.get(item.id)
-    if (record && orbitalFacts(record)?.epochMs > (orbitalFacts(item.record)?.epochMs || 0)) {
-      const next = { ...item, record }
-      await userPut('watchlist', next)
-      changed.push(next)
-    }
+// Compare against the persisted row inside the write transaction, not a stale
+// UI copy. Preserve concurrent nickname changes and never recreate deletions.
+export function refreshWatchedElements(records) {
+  const incoming = new Map()
+  for (const record of records) {
+    if (!validWatchedRecord(record)) continue
+    const id = String(record.satrec.satnum),
+      previous = incoming.get(id)
+    if (!previous || orbitalFacts(record).epochMs > orbitalFacts(previous).epochMs)
+      incoming.set(id, structuredClone(record))
   }
-  if (changed.length)
-    updateOrbit({ watchlist: state.watchlist.map(w => changed.find(c => c.id === w.id) || w) })
+  return queueWatch(async () => {
+    for (const item of await userRecords('watchlist')) {
+      const record = incoming.get(item.id)
+      if (!record) continue
+      await userUpdate('watchlist', item.id, previous => {
+        if (
+          !previous ||
+          !validWatchItem(previous) ||
+          orbitalFacts(record).epochMs <= orbitalFacts(previous.record).epochMs
+        )
+          return undefined
+        return { ...previous, record }
+      })
+    }
+    await reloadWatchlist()
+  })
 }

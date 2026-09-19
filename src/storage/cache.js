@@ -230,7 +230,7 @@ export function expiresIn(expiresAt) {
   }
   const mins = Math.round(diff / 60_000)
   if (mins < 60) return `${mins}m`
-  return `${Math.round(mins / 60)}h ${mins % 60}m`
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`
 }
 
 /** Returns a human-readable "last fetched Xm ago" string */
@@ -242,7 +242,7 @@ export function lastFetched(fetchedAt) {
   const mins = Math.round(diff / 60_000)
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
-  return `${Math.round(mins / 60)}h ${mins % 60}m ago`
+  return `${Math.floor(mins / 60)}h ${mins % 60}m ago`
 }
 
 /** Corrupt cache metadata must not throw during catalog rendering. */

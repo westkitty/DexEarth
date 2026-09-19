@@ -335,6 +335,56 @@ try {
       (await import('/src/state/layerRegistry.js')).getGeometrySnapshot('AIR_RADAR')
     )
   ).toBeNull()
+  const watchAudit = await page.evaluate(async () => {
+    const orbit = await import('/src/state/orbitStore.js')
+    const db = await import('/src/storage/db.js')
+    const layer = (await import('/src/layers/satellites/layer.js')).satellitesLayer
+    const record = layer.getRecords().find(r => String(r.satrec.satnum) === '25544')
+    // Synthetic epoch changes test persistence only, not orbital accuracy/freshness.
+    const newer = {
+      ...record,
+      satrec: { ...record.satrec, jdsatepoch: record.satrec.jdsatepoch + 2 },
+    }
+    await orbit.watchSatellite(newer, 'AUDIT original')
+    await orbit.watchSatellite(record, 'AUDIT renamed')
+    const renamed = (await db.userRecords('watchlist'))[0]
+    await db.userPut('watchlist', { ...renamed, nickname: 'AUDIT other connection' })
+    const newest = {
+      ...newer,
+      satrec: { ...newer.satrec, jdsatepoch: newer.satrec.jdsatepoch + 1 },
+    }
+    await orbit.refreshWatchedElements([newest])
+    const refreshed = (await db.userRecords('watchlist'))[0]
+    await db.userDelete('watchlist', renamed.id)
+    await orbit.refreshWatchedElements([newest])
+    const removed = await db.userRecords('watchlist')
+    await db.userPut('watchlist', { id: 'audit-invalid', name: {}, record: null })
+    await orbit.initWatchlist()
+    return {
+      newestPreserved: renamed.record.satrec.jdsatepoch === newer.satrec.jdsatepoch,
+      nickname: refreshed.nickname,
+      removed: removed.length,
+      visible: orbit.getOrbitState().watchlist.length,
+      retained: (await db.userRecords('watchlist')).length,
+    }
+  })
+  expect(watchAudit).toEqual({
+    newestPreserved: true,
+    nickname: 'AUDIT other connection',
+    removed: 0,
+    visible: 0,
+    retained: 1,
+  })
+  await page.locator('#tour-tab-satellites').click()
+  await expect(page.getByText(/1 saved watchlist\/observer record\(s\) not loaded/)).toBeVisible()
+  await page.evaluate(async () => {
+    await (await import('/src/storage/db.js')).userDelete('watchlist', 'audit-invalid')
+    await (await import('/src/state/orbitStore.js')).initWatchlist()
+  })
+  await expect(page.getByText(/saved watchlist\/observer record\(s\) not loaded/)).toHaveCount(0)
+  results.push(
+    'Watchlist preserves newer epochs and concurrent nicknames, never recreates deletions; corrupt fixture warns without deletion: PASS'
+  )
   // Exercise actual timer autosave, not only the helper, against a full store.
   await page.evaluate(async () => {
     const { ReplayController } = await import('/src/state/replay.js')

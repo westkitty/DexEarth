@@ -11,6 +11,7 @@ import {
   unwatchSatellite,
   saveObserver,
 } from '../../../state/orbitStore.js'
+import { isValidMarker } from '../../../storage/markerSchema.js'
 import { markersGetAll } from '../../../storage/db.js'
 import { getTimeMs } from '../../../state/timeController.js'
 import * as settings from '../../../state/settingsStore.js'
@@ -34,7 +35,7 @@ export default function SatellitesPanel({ viewer, toggleLayer }) {
       }),
       b = satellitesLayer.onTelemetry(() => tick(n => n + 1))
     markersGetAll()
-      .then(setMarkers)
+      .then(rows => setMarkers(rows.filter(marker => isValidMarker(marker)).slice(0, 500)))
       .catch(e => setError(e.message))
     const timer = setInterval(() => tick(n => n + 1), 1000)
     return () => {
@@ -88,6 +89,7 @@ export default function SatellitesPanel({ viewer, toggleLayer }) {
   }
   return (
     <section className="analysis-panel" aria-label="Satellite inspector">
+      {state.storageWarning && <p role="status">{state.storageWarning}</p>}
       <div className="actions">
         <button
           onClick={() =>
