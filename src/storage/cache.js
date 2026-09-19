@@ -4,7 +4,7 @@ import { cacheGet, cacheSet, cacheDelete, cacheGetAll } from './db.js'
 import { getDatasetConfig } from '../data/datasetRegistry.js'
 import { fetchWithRetry } from '../utils.js'
 import { CACHE_VERSION, CACHE_MAX_BYTES, evictionKeys, isRemoteRecord } from './cachePolicy.js'
-import { publishDataset } from '../data/datasetStatus.js'
+import { publishDataset, hasFreshTimestamps } from '../data/datasetStatus.js'
 import { emitAudit } from '../utils/auditLog.js'
 
 // Older retention pins used Infinity as expiry. Recover a truthful TTL on read.
@@ -29,9 +29,10 @@ export async function getCached(key, ttlMs) {
     const row = await cacheGet(key)
     if (!row) return null
     const value = normalizeCacheValue(key, row.value)
-    if (!value) return null
+    if (!value || value.data === undefined) return null
     if (value.source === 'bundled') return value
-    if (!value.fetchedAt) return null
+    if (!(Number.isFinite(ttlMs) || ttlMs === Infinity) || ttlMs <= 0) return null
+    if (!hasFreshTimestamps(value)) return null
 
     // Retention pins never override external-data freshness.
 
@@ -47,6 +48,8 @@ export async function getCached(key, ttlMs) {
 
 let writeQueue = Promise.resolve()
 export function setCached(key, data, ttlMs, source = 'remote', pinned = false) {
+  if (source !== 'bundled' && source !== 'custom' && (!Number.isFinite(ttlMs) || ttlMs <= 0))
+    return Promise.resolve(false)
   const fetchedAt = source === 'bundled' ? null : Date.now()
   const value = {
     version: CACHE_VERSION,
@@ -218,8 +221,8 @@ async function fetchDataset(id, options = {}) {
 
 /** Returns a human-readable "expires in Xm" or "expired Xm ago" string */
 export function expiresIn(expiresAt) {
-  if (!expiresAt) return 'unknown'
-  if (expiresAt === Infinity) return 'No expiry (static data)'
+  if (!expiresAt || (!Number.isFinite(expiresAt) && expiresAt !== Infinity)) return 'unknown'
+  if (expiresAt === Infinity) return 'No finite expiry'
   const diff = expiresAt - Date.now()
   if (diff <= 0) {
     const ago = Math.round(-diff / 60_000)
@@ -233,9 +236,18 @@ export function expiresIn(expiresAt) {
 /** Returns a human-readable "last fetched Xm ago" string */
 export function lastFetched(fetchedAt) {
   if (!fetchedAt) return 'never'
+  if (!Number.isFinite(fetchedAt) || Math.abs(fetchedAt) > 8.64e15) return 'unknown'
+  if (fetchedAt > Date.now()) return 'future timestamp / clock skew'
   const diff = Date.now() - fetchedAt
   const mins = Math.round(diff / 60_000)
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
   return `${Math.round(mins / 60)}h ${mins % 60}m ago`
+}
+
+/** Corrupt cache metadata must not throw during catalog rendering. */
+export function fetchedTimestamp(fetchedAt) {
+  if (!Number.isFinite(fetchedAt) || fetchedAt <= 0 || fetchedAt > 8.64e15)
+    return 'unknown / not a remote fetch'
+  return new Date(fetchedAt).toISOString()
 }

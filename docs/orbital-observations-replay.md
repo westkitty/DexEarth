@@ -165,7 +165,7 @@ validation. Two moderate development-only Vitest advisories remain after compati
 ## Follow-up verification
 
 [The original-requirements audit](requirements-verification.md) covers every
-numbered request and documents the second pass's fixes. `npm run test:layers`
+numbered request and documents the subsequent verification fixes. `npm run test:layers`
 adds fixture-backed browser integration checks against a fresh development server.
 It verifies the primary registry bridge used by correlation/threat: at most 1,000
 points, 200 lines and 4,000 vertices per snapshot, explicitly labeled sampled local
@@ -177,3 +177,12 @@ and supports stepping individually through events sharing a timestamp. Time pane
 subscriptions clean up on unmount, and its new leader/follower selector exposes the
 existing same-origin BroadcastChannel behavior. Country label projection uses the
 API provided by Cesium 1.138, with one shared, disposable camera LOD listener.
+
+The latest repeat audit adds regression coverage for explicit repeated replay
+seeks versus continuous tick reuse, invalid imports preserving recordings,
+near-8-MiB export/import round trips, corrupt/future cache dates and invalid TLE
+fallbacks. Exports use compact JSON to honor the validated import size. Malformed
+external cache timestamps do not count as fresh, and malformed bundles report
+unavailable instead of a successful fallback. The full suite passes 131 tests in
+18 files; both browser suites were rerun. Physical GPU/device performance and
+upstream availability remain unverified.

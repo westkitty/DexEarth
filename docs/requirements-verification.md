@@ -11,12 +11,58 @@ rendering collections and tests, not just the previous delivery summary.
 - **Not applicable here**: an original Mac/master instruction cannot apply to
   this hosted, fixed-branch checkout. This is not a claim it was executed on Mac.
 
-The remote branch already contained `56c5dcb`. This turn's restored local history
+During the previous audit, the remote branch already contained `56c5dcb`. Its restored local history
 pointed at `058c73a`, although every working file was byte-for-byte identical to
 `56c5dcb`. After checking every tracked blob, a **mixed reset to the fetched
 published commit** aligned local Git metadata without changing working files.
 A fresh local checkpoint, `checkpoint-audit-56c5dcb`, preceded the audit fixes.
 No force-push, branch switch, secret access or wrapper-file modification is needed.
+
+## Latest re-verification (baseline `6d7efad`)
+
+The repeated verification request started with a clean worktree and matching
+local/remote `6d7efad404dbd72ad4105b0ee6dd1b332c3206f7`. The checkpoint
+`checkpoint-reverify-6d7efad` was created before changes. The matrix below still
+maps the original requirements; source review and both browser suites were
+rerun rather than treating the previous results as evidence for the new patch.
+
+Additional defects found and corrected:
+
+1. Repeating an explicit replay scrub/reset after moving the paused camera did
+   not restore the same key state. Only continuous playback ticks now reuse
+   unchanged geometry; explicit seeks restore it. Viewer replacement also
+   invalidates the geometry-reuse key.
+2. Invalid replay imports could end a current recording before validation.
+   Cloned input is now validated before playback or recording state changes.
+3. Pretty-printed exports could exceed their own 8-MiB import limit even when
+   the compact record passed validation. Download encoding now matches validation;
+   a near-limit Blob download/re-import test also checks URL cleanup.
+4. NaN/future timestamps, NaN TTL and infinite external expiry could evade
+   freshness comparisons. Shared validation now rejects those records as fresh,
+   external cache writes require finite positive TTL, and corrupt catalog dates
+   cannot throw during rendering. Authored custom data retains its separate policy.
+5. Malformed legacy parsed TLE records could masquerade as usable cache data;
+   empty/invalid bundled responses could report fallback success. Invalid cached
+   records now fall through, and an unusable bundle reports unavailable.
+
+Regression-first evidence: the initial targeted run failed **9 tests** against
+old code. After corrections, **131 tests across 18 files pass**, retaining the
+original 77 (17 additional regressions since the previous 114-test audit).
+New coverage is in `verificationEdges.test.js`, `workspace.test.js` and
+`tleSources.test.js` under `src/__tests__/`.
+
+Fresh results: lint, format check, unit tests, production build and complete local
+CI pass. Production offline/workflow/responsive browser smoke and the restarted-dev
+fixture layer audit both pass, with zero page errors; the latter also checks for
+Cesium render-stop errors. Build output: 437.71 kB application JS / 140.56 kB gzip
+(excludes separately served Cesium/assets). Existing mixed-import warnings remain
+non-fatal. Browser emulation is not physical-device or upstream-live verification.
+
+Current evidence (outside Git): `/home/user/dexearth-reverification-evidence/`;
+command logs: `/home/user/dexearth-third-*.log`. Earlier evidence directories below
+are historical. Explicit staging and remote SHA verification remain the final
+Git delivery gate, with the resulting commit reported separately to avoid a
+self-referential commit hash in this document. No master update is claimed.
 
 ## Requirement-by-requirement matrix
 
@@ -94,7 +140,8 @@ npm run test:layers
 
 Both browser scripts accept `CHROMIUM_PATH` and `DEXEARTH_EVIDENCE`.
 `DEXEARTH_URL` controls production; `DEXEARTH_DEV_URL` controls development.
-Evidence defaults to ignored `test-results/` subdirectories. This sandbox used
-`/home/user/dexearth-audit-evidence/`. Screenshots, downloaded observation/replay
+Evidence defaults to ignored `test-results/` subdirectories. The previous audit used
+`/home/user/dexearth-audit-evidence/`; the latest run used
+`/home/user/dexearth-reverification-evidence/`. Screenshots, downloaded observation/replay
 fixtures and browser binaries are not committed. Software-rendered screenshot
 capture can be slow; its timeout is 90 seconds, not a claimed frame-rate target.

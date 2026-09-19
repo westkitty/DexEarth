@@ -84,3 +84,21 @@ describe('workspace restoration integration', () => {
     expect(getTimeMs()).toBe(w.time.timeMs)
   })
 })
+
+it('explicit repeated scrubs restore camera/configuration again; continuous ticks may reuse geometry', () => {
+  const setView = vi.fn(),
+    restoreLayers = vi.fn()
+  configureWorkspace({
+    viewer: { isDestroyed: () => false, camera: { setView } },
+    toggles: {},
+    restoreLayers,
+  })
+  const w = workspace()
+  applyWorkspace(w, { replay: true })
+  // The user can inspect/move the globe while paused; seeking the same frame must restore it.
+  applyWorkspace(w, { replay: true })
+  expect(setView).toHaveBeenCalledTimes(2)
+  expect(restoreLayers).toHaveBeenCalledTimes(2)
+  applyWorkspace(w, { replay: true, elapsed: 250, continuous: true })
+  expect(setView).toHaveBeenCalledTimes(2)
+})

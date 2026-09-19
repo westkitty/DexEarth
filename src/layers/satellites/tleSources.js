@@ -1,3 +1,4 @@
+import { orbitalFacts } from './orbital.js'
 import { parseTLEs, fetchWithRetry } from '../../utils.js'
 import { getCached, setCached } from '../../storage/cache.js'
 import { cacheGet } from '../../storage/db.js'
@@ -19,7 +20,14 @@ export function loadTLEs(options = {}) {
 async function load({ remoteUrl, forceRefresh = false } = {}) {
   const ttl = (settings.get('tleTtlHours') || 12) * 3600000
   const bundledOnly = settings.get('satelliteUseBundled') === true
-  const hydrate = row => (typeof row.data === 'string' ? parseTLEs(row.data) : row.data)
+  const hydrate = row => {
+    const records = typeof row.data === 'string' ? parseTLEs(row.data) : row.data
+    return Array.isArray(records)
+      ? records.filter(
+          r => typeof r?.name === 'string' && r.satrec?.satnum != null && orbitalFacts(r)
+        )
+      : []
+  }
   if (!bundledOnly && !forceRefresh) {
     const cached = await getCached('tle_data', ttl)
     if (cached && hydrate(cached)?.length)
@@ -54,6 +62,7 @@ async function load({ remoteUrl, forceRefresh = false } = {}) {
     const res = await fetch('/data/tle/starter.tle')
     if (!res.ok) throw new Error('Bundle unavailable')
     const records = parseTLEs(await res.text())
+    if (!records.length) throw new Error('Bundle contains no valid TLE records')
     return { records, source: 'bundled', origin: 'bundle', fetchedAt: null, expiresAt: null }
   } catch {
     return { records: [], source: 'unavailable', fetchedAt: null, expiresAt: null }

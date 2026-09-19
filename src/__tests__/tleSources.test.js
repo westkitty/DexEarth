@@ -61,4 +61,29 @@ describe('TLE origin and concurrency', () => {
     )
     expect((await loadTLEs()).source).toBe('unavailable')
   })
+  it('reports unavailable instead of bundled success when the local file has no valid elements', async () => {
+    get.mockImplementation(key => (key === 'satelliteUseBundled' ? true : 12))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, text: async () => '<html>not a TLE file</html>' }))
+    )
+    const result = await loadTLEs()
+    expect(result.source).toBe('unavailable')
+    expect(result.records).toEqual([])
+  })
+  it('rejects corrupt legacy parsed records and continues through network failure to a valid bundle', async () => {
+    getCached.mockResolvedValue({ data: [{ name: 'broken', satrec: {} }] })
+    cacheGet.mockResolvedValue({ value: { data: [null, { satrec: null }] } })
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValueOnce({ ok: true, text: async () => tle })
+    )
+    const result = await loadTLEs()
+    expect(result.source).toBe('bundled')
+    expect(result.records.length).toBeGreaterThan(0)
+    expect(result.fetchedAt).toBeNull()
+  })
 })

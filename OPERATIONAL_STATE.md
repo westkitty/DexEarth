@@ -91,16 +91,17 @@ local wrapper/private paths are excluded from formatting.
   Browser CDN installation was blocked; an npm-distributed Chromium binary and
   its packaged libraries enabled validation without adding a production dependency.
 
-Final verification on 2026-09-19:
+Latest re-verification on 2026-09-19 (after baseline `6d7efad`):
 
-| Command                                           | Result                                                     |
-| ------------------------------------------------- | ---------------------------------------------------------- |
-| `npm run lint`                                    | PASS                                                       |
-| `npm run format:check`                            | PASS                                                       |
-| `npm run test:run`                                | PASS — 114 tests, 17 files (all original 77 preserved)     |
-| `npm run build`                                   | PASS — non-failing existing dynamic/static import warnings |
-| `npm run ci`                                      | PASS                                                       |
-| `npm run test:browser` (configured Chromium path) | PASS — all smoke checks, zero page errors                  |
+| Command                                                   | Result                                                     |
+| --------------------------------------------------------- | ---------------------------------------------------------- |
+| `npm run lint`                                            | PASS                                                       |
+| `npm run format:check`                                    | PASS                                                       |
+| `npm run test:run`                                        | PASS — 131 tests, 18 files (all original 77 preserved)     |
+| `npm run build`                                           | PASS — non-failing existing dynamic/static import warnings |
+| `npm run ci`                                              | PASS                                                       |
+| `npm run test:browser` (configured Chromium path)         | PASS — all smoke checks, zero page errors                  |
+| `npm run test:layers` (fresh dev server, remote fixtures) | PASS — zero page/render-stop errors                        |
 
 Delivery verification is reported in the implementation report. See [the detailed guide](docs/orbital-observations-replay.md) for behavior,
 units, import validation, limits and instructions.
@@ -149,9 +150,33 @@ province LOD below 1,500 km, plus application of all five style presets (includi
 automatic Safe Mode fallbacks). Zero page errors or Cesium render-stop errors.
 This does not verify full shader fidelity on a physical GPU or real source freshness.
 
-Current browser evidence is in `/home/user/dexearth-audit-evidence/` outside Git.
+Second-audit browser evidence is in `/home/user/dexearth-audit-evidence/` outside Git.
 The production smoke uses 44px coarse-pointer controls and all four requested
 viewports. Software-rendered screenshots needed a longer capture timeout; no FPS
-promise is inferred. Tests total **114 passing across 17 files**, with the original
+promise is inferred. That audit totaled **114 passing across 17 files**, with the original
 77 tests retained. Production and layer browser scripts both pass. Final lint,
 format, build and complete CI are rerun before delivery.
+
+## Latest repeated verification
+
+Started clean at published `6d7efad`; local checkpoint
+`checkpoint-reverify-6d7efad` preceded edits. Rechecked the original requirement
+matrix, runtime restore/cache paths and browser integration. Fixed repeated
+explicit replay restoration, validation-before-import mutation, near-limit JSON
+export/import consistency, conservative corrupt/future cache timestamp handling,
+crash-safe catalog dates and malformed/empty TLE fallbacks. Continuous playback
+still reuses unchanged geometry. No protected paths or dependencies changed.
+
+Regression-first run exposed nine failures; the final suite passes **131 tests
+in 18 files**, including 17 new cases. Both browser suites were rerun against the
+new production build and a freshly restarted dev server. Requested viewport,
+fully offline reload, durable records, local workflows and fixture-backed layer
+checks all pass; no page errors or detected Cesium render-stop errors. The table
+above records the latest command gates, including complete local CI. This does
+not imply GitHub-hosted CI ran on the Arena branch.
+
+Latest browser evidence: `/home/user/dexearth-reverification-evidence/` outside
+Git; current logs: `/home/user/dexearth-third-*.log`. Built application JS:
+437.71 kB / 140.56 kB gzip, excluding Cesium/assets. All hardware, live-source and
+optional authenticated FIRMS limitations above still apply. The final report
+supplies the commit and independent remote SHA verification on the fixed branch.

@@ -19,6 +19,7 @@ let context = null
 let lastApplied = ''
 let savedMarkers = []
 export function configureWorkspace(value) {
+  if (context?.viewer !== value?.viewer) lastApplied = ''
   context = value
 }
 export function setSavedMarkers(markers) {
@@ -61,7 +62,10 @@ export function captureWorkspace() {
     datasets: datasetReferences(),
   }
 }
-export function applyWorkspace(workspace, { replay = false, elapsed = 0 } = {}) {
+export function applyWorkspace(
+  workspace,
+  { replay = false, elapsed = 0, continuous = false } = {}
+) {
   validateWorkspace(workspace)
   if (!context?.viewer || context.viewer.isDestroyed()) throw new Error('Globe not ready')
   const { viewer } = context
@@ -78,7 +82,9 @@ export function applyWorkspace(workspace, { replay = false, elapsed = 0 } = {}) 
       tc.setReplaySpeed(w.time.speed)
     }
     const key = JSON.stringify({ ...w, time: null, datasets: null })
-    if (replay && key === lastApplied) return
+    // Only continuous playback may reuse geometry. Explicit seek/reset must
+    // restore a paused view even if the user has since moved the camera.
+    if (replay && continuous && key === lastApplied) return
     lastApplied = replay ? key : ''
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(w.camera.lon, w.camera.lat, w.camera.alt),

@@ -3,7 +3,8 @@ import { captureWorkspace, applyWorkspace } from './workspace.js'
 const listeners = new Set()
 export const replay = new ReplayController({
   capture: captureWorkspace,
-  apply: (w, elapsed) => applyWorkspace(w, { replay: true, elapsed }),
+  apply: (w, elapsed, { continuous = false } = {}) =>
+    applyWorkspace(w, { replay: true, elapsed, continuous }),
   onChange: () => listeners.forEach(fn => fn()),
 })
 export function subscribeReplay(fn) {

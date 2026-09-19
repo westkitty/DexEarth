@@ -135,17 +135,22 @@ export class ReplayController {
     return this.session
   }
   load(s) {
+    const validated = validateReplay(structuredClone(s))
     this.pause()
     this.recording = false
-    this.session = validateReplay(structuredClone(s))
+    this.session = validated
     this.scrub(0)
   }
-  scrub(ms) {
-    if (!this.session || this.recording) return
+  scrub(ms, continuous = false) {
+    if (!this.session || this.recording || !Number.isFinite(ms)) return
     this.position = Math.max(0, Math.min(this.session.duration, ms))
     const e = this.session.events.findLast(e => e.offset <= this.position)
     this.cursor = e?.seq ?? -1
-    if (e) this.apply(structuredClone(e.workspace), this.position - e.offset)
+    if (e) {
+      if (continuous)
+        this.apply(structuredClone(e.workspace), this.position - e.offset, { continuous: true })
+      else this.apply(structuredClone(e.workspace), this.position - e.offset)
+    }
     this.onChange()
   }
   step(direction = 1) {
@@ -176,7 +181,7 @@ export class ReplayController {
     const wall = this.now(),
       next = this.position + Math.max(0, wall - this.lastWall) * this.speed
     this.lastWall = wall
-    this.scrub(next)
+    this.scrub(next, true)
     if (this.position >= this.session.duration) this.pause()
   }
   setSpeed(n) {

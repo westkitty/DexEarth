@@ -6,6 +6,7 @@ import {
   deleteCached,
   clearRemoteCache,
   lastFetched,
+  fetchedTimestamp,
   pinDataset,
   unpinDataset,
 } from '../../../storage/cache.js'
@@ -91,11 +92,7 @@ export default function DatasetManagerPanel() {
             <p>
               Source: {ds.remoteUrl ? ds.name : 'bundled local assets'}
               <br />
-              Fetch:{' '}
-              {record?.fetchedAt
-                ? new Date(record.fetchedAt).toISOString()
-                : 'unknown / not a remote fetch'}{' '}
-              · Age: {lastFetched(record?.fetchedAt)}
+              Fetch: {fetchedTimestamp(record?.fetchedAt)} · Age: {lastFetched(record?.fetchedAt)}
               <br />
               TTL:{' '}
               {Number.isFinite(ds.cacheTtlMs)

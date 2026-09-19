@@ -157,7 +157,9 @@ export const listObservations = () => userRecords('observations')
 export const deleteObservation = id => userDelete('observations', id)
 export function downloadJson(value, filename) {
   const url = URL.createObjectURL(
-    new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' })
+    // Keep the wire encoding identical to the size-validated encoding. Pretty
+    // printing a nearly full session can otherwise make its own import fail.
+    new Blob([JSON.stringify(value)], { type: 'application/json' })
   )
   const a = document.createElement('a')
   a.href = url
