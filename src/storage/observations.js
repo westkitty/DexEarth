@@ -1,3 +1,4 @@
+import { isValidMarkerCollection } from './markerSchema.js'
 import { userRecords, userPut, userDelete } from './db.js'
 export const OBSERVATION_VERSION = 1
 export const MAX_IMPORT_BYTES = 8 * 1024 * 1024
@@ -36,21 +37,7 @@ export function validateWorkspace(w) {
     'VISUAL_FX',
   ]
   if (w.layers.length > 20 || !w.layers.every(id => layerIds.includes(id))) fail()
-  if (
-    !Array.isArray(w.markers) ||
-    w.markers.length > 500 ||
-    !w.markers.every(
-      m =>
-        m &&
-        finite(m.lon, -180, 180) &&
-        finite(m.lat, -90, 90) &&
-        typeof m.title === 'string' &&
-        m.title.length <= 500 &&
-        (Number.isInteger(m.id) || typeof m.id === 'string')
-    )
-  )
-    fail()
-  if (new Set(w.markers.map(m => String(m.id))).size !== w.markers.length) fail()
+  if (!isValidMarkerCollection(w.markers)) fail()
   if (
     !Array.isArray(w.datasets) ||
     w.datasets.length > 100 ||

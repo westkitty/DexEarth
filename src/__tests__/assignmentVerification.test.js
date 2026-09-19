@@ -74,3 +74,16 @@ it('refuses marker IDs that collide after Cesium string serialization', () => {
   ]
   expect(() => validateWorkspace(w)).toThrow()
 })
+
+it.each([
+  { tags: 'not an array' },
+  { tags: [null] },
+  { tags: [17] },
+  { tags: ['x'.repeat(101)] },
+  { notes: {} },
+  { severity: {} },
+])('refuses marker metadata unsafe for the rendered tools: %j', patch => {
+  const w = workspace()
+  w.markers = [{ id: 1, title: 'Imported marker', lon: 0, lat: 0, ...patch }]
+  expect(() => validateWorkspace(w)).toThrow()
+})

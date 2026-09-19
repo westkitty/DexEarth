@@ -1,3 +1,8 @@
+import {
+  MAX_MARKERS,
+  validateMarkerDraft,
+  isValidMarkerCollection,
+} from '../../storage/markerSchema.js'
 import { emitSessionEvent } from '../../state/sessionEvents.js'
 // ─── Markers Layer ────────────────────────────────────────────────────────────
 // Persists markers to IndexedDB. Each marker has a Cesium entity on the globe.
@@ -13,6 +18,7 @@ const SEVERITY_COLORS = {
   classified: '#CC00FF',
 }
 
+let _pendingAdds = 0
 let _generation = 0
 let _viewer = null
 let _snapshotMode = false
@@ -100,24 +106,32 @@ export const markersLayer = {
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
   async addMarker({ lon, lat, title, tags = [], notes = '', severity = 'info' }) {
+    validateMarkerDraft({ lon, lat, title, tags, notes, severity })
+    if (_markers.length + _pendingAdds >= MAX_MARKERS)
+      throw new Error('Marker limit: 500. Remove a marker before adding another.')
     const generation = _generation
-    const id = _snapshotMode
-      ? `snapshot-${crypto.randomUUID()}`
-      : await markerAdd({ lon, lat, title, tags, notes, severity })
-    const marker = { id, lon, lat, title, tags, notes, severity, createdAt: Date.now() }
-    if (generation !== _generation) return marker
-    _markers.push(marker)
-    _addEntityForMarker(marker)
-    pulseHud('marker', title)
-    _notifyChange()
-    return marker
+    _pendingAdds++
+    try {
+      const id = _snapshotMode
+        ? `snapshot-${crypto.randomUUID()}`
+        : await markerAdd({ lon, lat, title, tags, notes, severity })
+      const marker = { id, lon, lat, title, tags, notes, severity, createdAt: Date.now() }
+      if (generation !== _generation) return marker
+      _markers.push(marker)
+      _addEntityForMarker(marker)
+      pulseHud('marker', title)
+      _notifyChange()
+      return marker
+    } finally {
+      _pendingAdds--
+    }
   },
 
   async updateMarker(id, updates) {
     const generation = _generation
     const idx = _markers.findIndex(m => m.id === id)
     if (idx < 0) return
-    const updated = { ..._markers[idx], ...updates }
+    const updated = validateMarkerDraft({ ..._markers[idx], ...updates, id })
     if (!_snapshotMode) await markerUpdate(updated)
     if (generation !== _generation) return
     _markers[idx] = updated
@@ -148,6 +162,7 @@ export const markersLayer = {
     return _snapshotMode
   },
   showSnapshot(viewer, markers) {
+    if (!isValidMarkerCollection(markers)) throw new Error('Invalid marker snapshot')
     _generation++
     _snapshotMode = true
     _markers.forEach(m => _removeEntityForMarker(m.id))

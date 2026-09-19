@@ -110,3 +110,49 @@ describe('assignment: snapshot restore and unloaded marker lifecycle', () => {
     }
   )
 })
+
+it.each([
+  { lon: NaN },
+  { lon: 181 },
+  { lat: -91 },
+  { title: 'x'.repeat(501) },
+  { tags: [null] },
+  { notes: 'x'.repeat(10001) },
+])('rejects invalid local marker fields before storage: %j', async patch => {
+  markerAdd.mockResolvedValue(3)
+  await expect(markersLayer.addMarker({ ...saved, ...patch })).rejects.toThrow(/marker/i)
+  expect(markerAdd).not.toHaveBeenCalled()
+  expect(markersLayer.getMarkers()).toEqual([])
+})
+it('validates marker updates before writing or changing geometry', async () => {
+  markersGetAll.mockResolvedValueOnce([saved])
+  const v = viewer()
+  await markersLayer.activate({ viewer: v })
+  await expect(markersLayer.updateMarker(saved.id, { lat: Infinity })).rejects.toThrow(/marker/i)
+  expect(markerUpdate).not.toHaveBeenCalled()
+  expect(markersLayer.getMarkers()).toEqual([saved])
+  expect(v.ids()).toEqual(['marker_1'])
+})
+it('rejects an invalid snapshot before removing the current displayed markers', () => {
+  const v = viewer()
+  markersLayer.showSnapshot(v, [snapshot])
+  expect(() => markersLayer.showSnapshot(v, [{ ...saved, tags: [null] }])).toThrow(/marker/i)
+  expect(markersLayer.getMarkers()).toEqual([snapshot])
+  expect(v.ids()).toEqual(['marker_snapshot'])
+})
+it('reserves the last marker slot before concurrent asynchronous writes', async () => {
+  const v = viewer(),
+    write = deferred()
+  markersGetAll.mockResolvedValueOnce(Array.from({ length: 499 }, (_, id) => ({ ...saved, id })))
+  await markersLayer.activate({ viewer: v })
+  markerAdd.mockReturnValueOnce(write.promise)
+  const last = markersLayer.addMarker(saved)
+  try {
+    await expect(markersLayer.addMarker(saved)).rejects.toThrow(/500/)
+    expect(markerAdd).toHaveBeenCalledTimes(1)
+  } finally {
+    write.resolve(500)
+    await last
+  }
+  expect(markersLayer.getMarkers()).toHaveLength(500)
+})

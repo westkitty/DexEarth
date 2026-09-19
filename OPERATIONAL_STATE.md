@@ -91,13 +91,13 @@ local wrapper/private paths are excluded from formatting.
   Browser CDN installation was blocked; an npm-distributed Chromium binary and
   its packaged libraries enabled validation without adding a production dependency.
 
-Latest assignment check on 2026-09-19 (after baseline `10e9615`):
+Latest complete recheck on 2026-09-19 (published baseline `f6999e0`):
 
 | Command                                                   | Result                                                     |
 | --------------------------------------------------------- | ---------------------------------------------------------- |
 | `npm run lint`                                            | PASS                                                       |
 | `npm run format:check`                                    | PASS                                                       |
-| `npm run test:run`                                        | PASS — 146 tests, 20 files (all original 77 preserved)     |
+| `npm run test:run`                                        | PASS — 161 tests, 20 files (all original 77 preserved)     |
 | `npm run build`                                           | PASS — non-failing existing dynamic/static import warnings |
 | `npm run ci`                                              | PASS                                                       |
 | `npm run test:browser` (configured Chromium path)         | PASS — all smoke checks, zero page errors                  |
@@ -181,7 +181,7 @@ Git; current logs: `/home/user/dexearth-third-*.log`. Built application JS:
 optional authenticated FIRMS limitations above still apply. The final report
 supplies the commit and independent remote SHA verification on the fixed branch.
 
-## Current assignment verification
+## Previous assignment verification (delivered as `f6999e0`)
 
 Starting local/remote commit: `10e9615`; clean initial worktree, checkpoint
 `checkpoint-assignment-10e9615`. The original numbered requirements were checked
@@ -207,3 +207,33 @@ or protected-path changes. Physical hardware, sustained FPS, live-source freshne
 and optional authenticated FIRMS remain unverified, not silently marked passed.
 The final delivery report gives the new commit and matching remote SHA on
 `arena/01a0b75b-dexearth`; master is untouched.
+
+## Latest complete requirement recheck
+
+Remote `f6999e0` was confirmed first. Restored local Git metadata pointed at the
+initial baseline, but comparison of all 158 published files found zero content
+differences. A checkpoint and mixed reset aligned local metadata without changing
+working files, then `checkpoint-final-audit-f6999e0` preceded the new patch.
+
+Rechecked the requirement matrix and fixed malformed marker metadata imports,
+invalid local coordinates/text reaching storage or scene state, and concurrent
+adds exceeding the 500-marker bound. Shared validation serves authored markers,
+observations and replay snapshots. The form reports recoverable errors, preserves
+input and rejects numeric-prefix garbage. Invalid snapshot data is refused before
+removing current markers. No automatic deletion/repair of existing authored data.
+
+Fresh results: **161 tests / 20 files pass**; all **77 original tests** also pass
+in a separate seven-file run. All 15 new regressions failed before the fixes.
+Lint, formatting, production build and full local CI pass. Both browser suites
+pass again, including new marker-form correction and invalid metadata import
+checks, offline reload, all required viewport sizes and fixture-backed existing
+systems. Zero page errors or detected Cesium render-stop errors.
+
+Current evidence: `/home/user/dexearth-final-evidence/`; logs:
+`/home/user/dexearth-final-*.log`, outside Git. Application JS 439.78 kB /
+141.26 kB gzip (Cesium/assets separate). Existing non-fatal build warnings remain.
+Dependencies installed from the unchanged lockfile; external browser tooling is
+not a project dependency. All previous physical-device, sustained FPS, genuine
+upstream freshness and optional authenticated FIRMS limitations still apply.
+Final commit and remote SHA equality are reported after explicit-path staging,
+commit and non-force push to the fixed session branch. Master remains untouched.

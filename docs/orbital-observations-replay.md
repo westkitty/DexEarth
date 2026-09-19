@@ -187,7 +187,7 @@ unavailable instead of a successful fallback. That audit passed 131 tests in
 18 files; both browser suites were rerun. Physical GPU/device performance and
 upstream availability remain unverified.
 
-The current assignment check passes **146 tests in 20 files**, plus both browser
+The previous assignment check passed **146 tests in 20 files**, plus both browser
 suites. Editing either orbital range endpoint adjusts its partner to preserve
 minimum ≤ maximum; every intermediate recorded/saved workspace stays valid. Pass
 results display maximum-elevation UTC as well as elevation. Observation/replay
@@ -195,3 +195,14 @@ imports reject marker IDs that would collide after string conversion. Pending
 marker storage operations cannot overwrite a newly restored snapshot or populate
 an unloaded viewer; already-requested persistent writes still finish in storage.
 The original seven test files were also rerun separately (all 77 tests pass).
+
+The latest requirement recheck passes **161 tests in 20 files**, plus both browser
+suites and a separate rerun of all 77 original tests. Marker coordinates must be
+finite and within longitude ±180° / latitude ±90°. Authored titles are 1–500
+characters; notes up to 10,000; optional tags are an array of up to 100 strings,
+up to 100 characters each. Optional severity is one of the existing four labels.
+Imports may omit optional legacy metadata, but malformed present fields are
+rejected before restoration. String marker IDs are nonempty and at most 100
+characters. Pending local adds reserve capacity at the 500-marker limit.
+Marker form errors retain entered values so they can be corrected; these checks
+do not delete or automatically repair arbitrary pre-existing corrupt records.

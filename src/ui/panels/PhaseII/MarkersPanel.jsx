@@ -53,6 +53,7 @@ export default function MarkersPanel({ viewer }) {
   const [isActive, setIsActive] = useState(markersLayer.isActive)
   const [markers, setMarkers] = useState(markersLayer.getMarkers)
   useEffect(() => markersLayer.onChange(setMarkers), [])
+  const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [addLon, setAddLon] = useState('0')
   const [addLat, setAddLat] = useState('0')
@@ -63,9 +64,14 @@ export default function MarkersPanel({ viewer }) {
 
   const activate = useCallback(async () => {
     if (!viewer || isActive) return
-    await markersLayer.activate({ viewer })
-    setMarkers(markersLayer.getMarkers())
-    setIsActive(true)
+    try {
+      setError('')
+      await markersLayer.activate({ viewer })
+      setMarkers(markersLayer.getMarkers())
+      setIsActive(markersLayer.isActive())
+    } catch (e) {
+      setError(e.message)
+    }
   }, [viewer, isActive])
 
   const deactivate = useCallback(() => {
@@ -75,18 +81,23 @@ export default function MarkersPanel({ viewer }) {
   }, [])
 
   const handleAdd = useCallback(async () => {
-    if (!addTitle.trim()) return
-    await markersLayer.addMarker({
-      lon: parseFloat(addLon),
-      lat: parseFloat(addLat),
-      title: addTitle,
-      severity: addSeverity,
-      notes: addNotes,
-      tags: [],
-    })
-    setAddTitle('')
-    setAddNotes('')
-    setShowAdd(false)
+    try {
+      setError('')
+      if (!addLon.trim() || !addLat.trim()) throw new Error('Marker coordinates are required.')
+      await markersLayer.addMarker({
+        lon: Number(addLon),
+        lat: Number(addLat),
+        title: addTitle,
+        severity: addSeverity,
+        notes: addNotes,
+        tags: [],
+      })
+      setAddTitle('')
+      setAddNotes('')
+      setShowAdd(false)
+    } catch (e) {
+      setError(e.message)
+    }
   }, [addLon, addLat, addTitle, addSeverity, addNotes])
 
   const filtered = markers.filter(
@@ -98,6 +109,7 @@ export default function MarkersPanel({ viewer }) {
 
   return (
     <div style={S.panel}>
+      {error && <p role="alert">{error}</p>}
       {markersLayer.isSnapshot() && (
         <p>
           Temporary observation/replay markers. Edits do not change saved markers. Deactivate then
@@ -135,17 +147,29 @@ export default function MarkersPanel({ viewer }) {
           <div style={S.row}>
             <div>
               <div style={S.label}>Lon</div>
-              <input style={S.input} value={addLon} onChange={e => setAddLon(e.target.value)} />
+              <input
+                aria-label="Marker longitude"
+                style={S.input}
+                value={addLon}
+                onChange={e => setAddLon(e.target.value)}
+              />
             </div>
             <div>
               <div style={S.label}>Lat</div>
-              <input style={S.input} value={addLat} onChange={e => setAddLat(e.target.value)} />
+              <input
+                aria-label="Marker latitude"
+                style={S.input}
+                value={addLat}
+                onChange={e => setAddLat(e.target.value)}
+              />
             </div>
           </div>
           <div style={{ marginBottom: '4px' }}>
             <div style={S.label}>Title</div>
             <input
               style={S.input}
+              aria-label="Marker title"
+              maxLength={500}
               value={addTitle}
               onChange={e => setAddTitle(e.target.value)}
               placeholder="Marker title"
@@ -169,6 +193,8 @@ export default function MarkersPanel({ viewer }) {
             <div style={S.label}>Notes</div>
             <textarea
               style={{ ...S.input, width: '180px', height: '40px', resize: 'vertical' }}
+              aria-label="Marker notes"
+              maxLength={10000}
               value={addNotes}
               onChange={e => setAddNotes(e.target.value)}
               placeholder="Markdown notes..."
@@ -214,7 +240,10 @@ export default function MarkersPanel({ viewer }) {
             </button>
             <button
               style={{ ...S.btn, padding: '1px 4px', fontSize: '9px', color: '#FF4444' }}
-              onClick={() => markersLayer.deleteMarker(m.id)}
+              onClick={() => {
+                setError('')
+                markersLayer.deleteMarker(m.id).catch(e => setError(e.message))
+              }}
             >
               ✕
             </button>

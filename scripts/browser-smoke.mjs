@@ -43,6 +43,26 @@ try {
   results.push(
     'Bundled startup, selected inspector, pass prediction and watchlist add: PASS (not proof of remote freshness)'
   )
+  await page.locator('#tour-tab-tools').click()
+  const markerPanel = page.getByText('📍 MARKERS', { exact: true }).locator('..')
+  await markerPanel.getByRole('button', { name: '▶ ACTIVATE', exact: true }).click()
+  await markerPanel.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.getByLabel('Marker title', { exact: true }).fill('Validated local marker')
+  for (const invalid of ['181', '12junk', '']) {
+    await page.getByLabel('Marker longitude', { exact: true }).fill(invalid)
+    await markerPanel.getByRole('button', { name: '✓ Save Marker', exact: true }).click()
+    await expect(markerPanel.getByRole('alert')).toBeVisible()
+    await expect(page.getByLabel('Marker title', { exact: true })).toHaveValue(
+      'Validated local marker'
+    )
+  }
+  await page.getByLabel('Marker longitude', { exact: true }).fill('12')
+  await markerPanel.getByRole('button', { name: '✓ Save Marker', exact: true }).click()
+  await expect(markerPanel.getByText('Validated local marker', { exact: true })).toBeVisible()
+  await expect(markerPanel.getByRole('alert')).toHaveCount(0)
+  results.push(
+    'Invalid marker coordinates refused with recoverable inline errors; corrected marker saved: PASS'
+  )
   await page.locator('#tour-tab-views').click()
   await page.getByRole('button', { name: 'Save Observation', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Load', exact: true })).toHaveCount(1)
@@ -69,6 +89,14 @@ try {
   ]
   await page.getByLabel('Import observation JSON').setInputFiles({
     name: 'colliding-markers.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(collision)),
+  })
+  await expect(page.locator('[aria-label="Observation sets"] [role="alert"]')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Load', exact: true })).toHaveCount(2)
+  collision.workspace.markers = [{ id: 1, title: 'Bad metadata', lon: 0, lat: 0, tags: [null] }]
+  await page.getByLabel('Import observation JSON').setInputFiles({
+    name: 'invalid-marker-metadata.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(collision)),
   })
@@ -120,7 +148,7 @@ try {
   await page.getByRole('button', { name: 'Delete', exact: true }).last().click()
   await expect(page.getByRole('button', { name: 'Load', exact: true })).toHaveCount(2)
   results.push(
-    'Observation rename, corrupt/colliding-marker import refusal and confirmed deletion: PASS'
+    'Observation rename, corrupt/colliding-marker/invalid-metadata import refusal and confirmed deletion: PASS'
   )
   results.push(
     'Crossed altitude/inclination edits recorded as valid ranges; peak pass UTC displayed: PASS'
