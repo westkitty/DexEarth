@@ -8,6 +8,8 @@ export function validateReplay(s) {
     s?.format !== 'DexEarth.Replay' ||
     s.version !== 1 ||
     typeof s.id !== 'string' ||
+    !s.id ||
+    s.id.length > 100 ||
     typeof s.name !== 'string' ||
     s.name.length > 160 ||
     !Number.isFinite(s.startedAt) ||
@@ -23,6 +25,7 @@ export function validateReplay(s) {
   let last = -1
   s.events.forEach((e, i) => {
     if (
+      !e ||
       e.seq !== i ||
       !Number.isFinite(e.offset) ||
       e.offset < last ||
@@ -60,6 +63,7 @@ export class ReplayController {
       recording: false,
       playing: false,
       position: 0,
+      cursor: -1,
       speed: 1,
       bytes: 0,
     })
@@ -68,6 +72,7 @@ export class ReplayController {
     this.pause()
     this.recording = true
     this.position = 0
+    this.cursor = -1
     this.bytes = 0
     this.session = {
       format: 'DexEarth.Replay',
@@ -79,12 +84,25 @@ export class ReplayController {
       externalData: 'references-only',
       events: [],
     }
-    this.record({ type: 'start', category: 'LOCAL INTERACTION' })
+    try {
+      this.record({ type: 'start', category: 'LOCAL INTERACTION' })
+      if (!this.session.events.length)
+        throw new Error('Initial workspace exceeds the replay size limit')
+    } catch (error) {
+      this.recording = false
+      this.session = null
+      this.onChange()
+      throw error
+    }
   }
   record(event) {
     if (!this.recording) return
-    const offset = Math.max(0, this.now() - this.session.startedAt)
+    const offset =
+      this.session.events.length === 0
+        ? 0
+        : Math.max(this.session.events.at(-1).offset, this.now() - this.session.startedAt)
     const workspace = structuredClone(this.capture())
+    validateWorkspace(workspace)
     const entry = {
       seq: this.session.events.length,
       offset,
@@ -126,18 +144,22 @@ export class ReplayController {
     if (!this.session || this.recording) return
     this.position = Math.max(0, Math.min(this.session.duration, ms))
     const e = this.session.events.findLast(e => e.offset <= this.position)
+    this.cursor = e?.seq ?? -1
     if (e) this.apply(structuredClone(e.workspace), this.position - e.offset)
     this.onChange()
   }
   step(direction = 1) {
     this.pause()
-    const es = this.session?.events || []
-    const next =
-      direction > 0
-        ? es.find(e => e.offset > this.position)
-        : es.findLast(e => e.offset < this.position)
-    this.scrub(next?.offset ?? (direction > 0 ? this.session?.duration || 0 : 0))
+    if (!this.session || this.recording) return
+    const events = this.session.events
+    const index = Math.max(0, Math.min(events.length - 1, this.cursor + (direction > 0 ? 1 : -1)))
+    const event = events[index]
+    this.cursor = index
+    this.position = event.offset
+    this.apply(structuredClone(event.workspace), 0)
+    this.onChange()
   }
+
   play() {
     if (!this.session || this.recording) return
     this.playing = true
@@ -163,6 +185,8 @@ export class ReplayController {
   }
   reset() {
     this.pause()
-    this.scrub(0)
+    if (!this.session || this.recording) return
+    this.cursor = -1
+    this.step(1)
   }
 }

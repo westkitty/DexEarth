@@ -51,6 +51,9 @@ const LAYER_OPTS = [
   'AIR_RADAR',
   'SEISMIC_GRID',
   'THERMAL_FIRES',
+  'MARITIME_LANES',
+  'FIBER_CABLES',
+  'TECTONIC_PLATES',
 ]
 const OPS = [
   { id: 'p2p', label: 'Point→Point' },
@@ -89,6 +92,7 @@ export default function CorrelationPanel({ viewer }) {
 
   return (
     <div style={S.panel}>
+      <p>Local analysis of bounded geometry samples; not a complete-source risk assessment.</p>
       <div style={{ ...S.label, fontWeight: 'bold', marginBottom: '6px' }}>◈ CORRELATION</div>
 
       <div style={S.row}>

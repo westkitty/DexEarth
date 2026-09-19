@@ -183,6 +183,8 @@ All Phase II features operate without API keys, paid services, or logins. Bundle
 
 Read [the format, architecture and limitations guide](docs/orbital-observations-replay.md)
 and [OPERATIONAL_STATE.md](OPERATIONAL_STATE.md) for verified evidence and limitations.
+The [requirement-by-requirement audit](docs/requirements-verification.md) records
+what was actually checked, the fixes found, and remaining live-source/device limits.
 
 ---
 
@@ -254,6 +256,7 @@ npm run test:run    # orbital, observation/replay, cache migration, UI state and
 npm run lint        # ESLint (0 errors enforced)
 npm run ci          # lint + format + tests + production build
 npm run test:browser # optional Playwright smoke against production preview
+npm run test:layers  # optional fixture-backed layer audit against a fresh dev server
 ```
 
 ---

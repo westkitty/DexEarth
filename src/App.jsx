@@ -1,3 +1,9 @@
+import {
+  initializePrimaryGeometry,
+  setPrimaryActive,
+  publishPrimaryGeometry,
+  geojsonSnapshot,
+} from './state/primaryGeometry.js'
 import WorkspaceRoot from './ui/WorkspaceRoot.jsx'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Cesium from 'cesium'
@@ -63,6 +69,9 @@ function buildRingPositions(lon, lat, radiusMeters, numPts = 48, altitude = 500)
 
 async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLayerStatus, vfxRef) {
   const ld = layerDataRef.current
+  const generation = (ld[layerId].generation = (ld[layerId].generation || 0) + 1)
+  const current = () => !viewer.isDestroyed() && generation === ld[layerId].generation
+  setPrimaryActive(layerId, true)
   setLayerStatus(s => ({ ...s, [layerId]: 'loading' }))
 
   try {
@@ -77,6 +86,14 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
           try {
             // /proxy/flights → Vite middleware aggregates 4 airplanes.live regions
             const { data: json } = await getOrFetchDataset('flights')
+            if (!current()) return
+            publishPrimaryGeometry('AIR_RADAR', {
+              points: (json.ac || []).map(a => ({
+                lon: a.lon,
+                lat: a.lat,
+                meta: { name: a.flight || a.hex },
+              })),
+            })
             points.removeAll()
             let count = 0
             ;(json.ac || []).forEach(a => {
@@ -96,16 +113,18 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
             setTelemetry(t => ({ ...t, AIR_RADAR: count }))
             setLayerStatus(s => ({ ...s, AIR_RADAR: 'active' }))
           } catch (err) {
+            if (!current()) return
             console.warn('AIR_RADAR fetch failed:', err.message)
             setLayerStatus(s => ({ ...s, AIR_RADAR: 'error' }))
             setTelemetry(t => ({ ...t, AIR_RADAR: 0 }))
           }
         }
         await refresh()
+        if (!current()) return
         tickCoordinator.registerSlow('AIR_RADAR', async () => {
           if (!ld.AIR_RADAR._tick) ld.AIR_RADAR._tick = 0
           ld.AIR_RADAR._tick++
-          if (ld.AIR_RADAR._tick >= 30) {
+          if (ld.AIR_RADAR._tick >= (ld.AIR_RADAR.degradation?.refreshInterval || 30000) / 1000) {
             ld.AIR_RADAR._tick = 0
             await refresh()
           }
@@ -120,6 +139,7 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
           setTelemetry(old => ({ ...old, ORBITAL_MATH: t.sats }))
         )
         await satellitesLayer.activate({ viewer })
+        if (!current()) return
         setLayerStatus(s => ({ ...s, ORBITAL_MATH: 'active' }))
         break
       }
@@ -136,6 +156,8 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
         const refreshFireAndRings = async () => {
           try {
             const { data: json } = await getOrFetchDataset('usgs_earthquakes_1mo')
+            if (!current()) return
+            publishPrimaryGeometry('SEISMIC_GRID', geojsonSnapshot(json))
             primitives.removeAll()
             shadows.removeAll()
             let count = 0
@@ -170,6 +192,7 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
             setTelemetry(t => ({ ...t, SEISMIC_GRID: count }))
             setLayerStatus(s => ({ ...s, SEISMIC_GRID: 'active' }))
           } catch (err) {
+            if (!current()) return
             console.warn('SEISMIC fetch failed:', err.message)
             setLayerStatus(s => ({ ...s, SEISMIC_GRID: 'error' }))
           }
@@ -202,7 +225,14 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
           try {
             const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/world/1`
             const { data: text } = await getOrFetchDataset('firms_active_fires', { remoteUrl: url })
+            if (!current()) return
             const rows = text.trim().split('\n').slice(1) // skip header
+            publishPrimaryGeometry('THERMAL_FIRES', {
+              points: rows.map(row => {
+                const cols = row.split(',')
+                return { lat: Number(cols[0]), lon: Number(cols[1]) }
+              }),
+            })
             points.removeAll()
             let count = 0
             rows.forEach(row => {
@@ -222,15 +252,20 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
             setTelemetry(t => ({ ...t, THERMAL_FIRES: count }))
             setLayerStatus(s => ({ ...s, THERMAL_FIRES: 'active' }))
           } catch (err) {
+            if (!current()) return
             console.warn('THERMAL_FIRES fetch failed:', err.message)
             setLayerStatus(s => ({ ...s, THERMAL_FIRES: 'error' }))
           }
         }
         await refresh()
+        if (!current()) return
         tickCoordinator.registerSlow('THERMAL_FIRES', () => {
           if (!ld.THERMAL_FIRES._tick) ld.THERMAL_FIRES._tick = 0
           ld.THERMAL_FIRES._tick++
-          if (ld.THERMAL_FIRES._tick >= 120) {
+          if (
+            ld.THERMAL_FIRES._tick >=
+            (ld.THERMAL_FIRES.degradation?.refreshInterval || 120000) / 1000
+          ) {
             ld.THERMAL_FIRES._tick = 0
             refresh()
           }
@@ -247,6 +282,7 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
         ld.MARITIME_LANES.shadows = shadows
         ld.MARITIME_LANES.lines = lines
 
+        publishPrimaryGeometry('MARITIME_LANES', { lines: SHIPPING_ROUTES })
         SHIPPING_ROUTES.forEach(route => {
           const shadowPositions = route.coords.map(([lo, la]) =>
             Cesium.Cartesian3.fromDegrees(lo, la, 800)
@@ -288,6 +324,8 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
         try {
           // /proxy/cables → Vite server-side proxy to www.submarinecablemap.com (bypasses CORS)
           const { data: json } = await getOrFetchDataset('submarine_cables')
+          if (!current()) return
+          publishPrimaryGeometry('FIBER_CABLES', geojsonSnapshot(json))
           let count = 0
           let colorIdx = 0
           ;(json.features || []).forEach(feature => {
@@ -348,6 +386,8 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
 
         try {
           const { data: json } = await getOrFetchDataset('pb2002_plates')
+          if (!current()) return
+          publishPrimaryGeometry('TECTONIC_PLATES', geojsonSnapshot(json))
           let count = 0
           const glowColor = Cesium.Color.fromCssColorString('#FF8C00').withAlpha(0.55)
 
@@ -553,6 +593,8 @@ async function activateLayer(viewer, layerDataRef, layerId, setTelemetry, setLay
 
 function deactivateLayer(viewer, layerDataRef, layerId, setTelemetry, setLayerStatus, vfxRef) {
   const ld = layerDataRef.current
+  ld[layerId].generation = (ld[layerId].generation || 0) + 1
+  setPrimaryActive(layerId, false)
 
   switch (layerId) {
     case 'AIR_RADAR': {
@@ -743,6 +785,7 @@ export default function App() {
 
   // ── Singleton Cesium init ─────────────────────────────────────────────────
   useEffect(() => {
+    initializePrimaryGeometry(layerDataRef.current, satellitesLayer)
     tickCoordinator.start()
     initPerfMonitor(telemetryStateRef)
 
@@ -999,6 +1042,10 @@ export default function App() {
         window.removeEventListener('keydown', handleKeyDown)
         window.removeEventListener('dexearth:loadScenario', handleLoadScenario)
         satellitesLayer.deactivate()
+        for (const { id } of LAYER_DEFS) {
+          setPrimaryActive(id, false)
+          layerData[id].generation = (layerData[id].generation || 0) + 1
+        }
         tickCoordinator.stop()
         stopPerfMonitor()
         // Clean up all layer intervals

@@ -41,6 +41,7 @@ export function validateWorkspace(w) {
     w.markers.length > 500 ||
     !w.markers.every(
       m =>
+        m &&
         finite(m.lon, -180, 180) &&
         finite(m.lat, -90, 90) &&
         typeof m.title === 'string' &&
@@ -49,10 +50,11 @@ export function validateWorkspace(w) {
     )
   )
     fail()
+  if (new Set(w.markers.map(m => m.id)).size !== w.markers.length) fail()
   if (
     !Array.isArray(w.datasets) ||
     w.datasets.length > 100 ||
-    !w.datasets.every(d => typeof d.id === 'string' && d.historicalSnapshot === false)
+    !w.datasets.every(d => d && typeof d.id === 'string' && d.historicalSnapshot === false)
   )
     fail()
   if (
@@ -60,6 +62,7 @@ export function validateWorkspace(w) {
     w.simulations.length > 100 ||
     !w.simulations.every(
       e =>
+        e &&
         finite(e.lon, -180, 180) &&
         finite(e.lat, -90, 90) &&
         finite(e.mag, 0, 12) &&
@@ -123,6 +126,7 @@ export function validateObservation(value) {
   )
     fail()
   validateWorkspace(value.workspace)
+  if (new Blob([JSON.stringify(value)]).size > MAX_IMPORT_BYTES) fail()
   return value
 }
 export function parseObservation(text) {

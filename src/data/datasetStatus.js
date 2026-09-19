@@ -2,9 +2,15 @@ import { emitSessionEvent } from '../state/sessionEvents.js'
 const active = new Map()
 export function datasetState(record, now = Date.now()) {
   if (record?.missingKey) return 'OPTIONAL KEY MISSING'
-  if (!record || record.source === 'error' || record.source === 'unavailable') return 'UNAVAILABLE'
+  if (!record?.source || record.source === 'error' || record.source === 'unavailable')
+    return 'UNAVAILABLE'
   if (record.source === 'bundled') return 'BUNDLED FALLBACK'
-  if (!record.fetchedAt || now >= record.expiresAt || record.source === 'stale_cache')
+  if (
+    !Number.isFinite(record.fetchedAt) ||
+    record.expiresAt == null ||
+    now >= record.expiresAt ||
+    record.source === 'stale_cache'
+  )
     return 'STALE'
   return record.origin === 'network' ? 'LIVE/FRESH' : 'CACHED'
 }

@@ -29,7 +29,9 @@ export async function getCached(key, ttlMs) {
     const row = await cacheGet(key)
     if (!row) return null
     const value = normalizeCacheValue(key, row.value)
-    if (!value || !value.fetchedAt) return null
+    if (!value) return null
+    if (value.source === 'bundled') return value
+    if (!value.fetchedAt) return null
 
     // Retention pins never override external-data freshness.
 
@@ -45,15 +47,15 @@ export async function getCached(key, ttlMs) {
 
 let writeQueue = Promise.resolve()
 export function setCached(key, data, ttlMs, source = 'remote', pinned = false) {
-  const fetchedAt = Date.now()
+  const fetchedAt = source === 'bundled' ? null : Date.now()
   const value = {
     version: CACHE_VERSION,
     data,
     fetchedAt,
-    expiresAt: fetchedAt + ttlMs,
+    expiresAt: source === 'bundled' ? Infinity : fetchedAt + ttlMs,
     source,
     pinned,
-    lastUsedAt: fetchedAt,
+    lastUsedAt: Date.now(),
     bytes: new Blob([JSON.stringify(data)]).size,
   }
   if (value.bytes > CACHE_MAX_BYTES) return Promise.resolve(false)
@@ -70,6 +72,10 @@ export function setCached(key, data, ttlMs, source = 'remote', pinned = false) {
       }
     })
   return writeQueue
+}
+export async function enforceCacheBounds() {
+  const rows = await cacheGetAll()
+  for (const key of evictionKeys(rows)) await cacheDelete(key)
 }
 export async function inspectCache() {
   return (await cacheGetAll())
@@ -148,7 +154,7 @@ async function fetchDataset(id, options = {}) {
     else data = await res.text()
 
     await setCached(id, data, config.cacheTtlMs, 'bundled', true) // Auto-pin bundled
-    return { data, source: 'bundled', fetchedAt: Date.now(), expiresAt: Infinity, pinned: true }
+    return { data, source: 'bundled', fetchedAt: null, expiresAt: Infinity, pinned: true }
   }
 
   // 3. Try Remote / Proxy

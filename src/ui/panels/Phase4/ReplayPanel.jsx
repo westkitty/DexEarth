@@ -27,6 +27,9 @@ export default function ReplayPanel() {
     if (!beforeReplay) beforeReplay = captureWorkspace()
     replay.load(s)
   }
+  function enterReplay() {
+    if (!beforeReplay) beforeReplay = captureWorkspace()
+  }
   const s = replay.session
   return (
     <section className="analysis-panel" aria-label="Local replay">
@@ -79,13 +82,37 @@ export default function ReplayPanel() {
         <button disabled={!replay.playing} onClick={() => replay.pause()}>
           Pause
         </button>
-        <button disabled={!s || replay.recording} onClick={() => replay.step(-1)}>
+        <button
+          disabled={!s || replay.recording}
+          onClick={() =>
+            run(() => {
+              enterReplay()
+              replay.step(-1)
+            })
+          }
+        >
           Previous
         </button>
-        <button disabled={!s || replay.recording} onClick={() => replay.step(1)}>
+        <button
+          disabled={!s || replay.recording}
+          onClick={() =>
+            run(() => {
+              enterReplay()
+              replay.step(1)
+            })
+          }
+        >
           Step
         </button>
-        <button disabled={!s || replay.recording} onClick={() => replay.reset()}>
+        <button
+          disabled={!s || replay.recording}
+          onClick={() =>
+            run(() => {
+              enterReplay()
+              replay.reset()
+            })
+          }
+        >
           Reset
         </button>
         <button
@@ -139,6 +166,7 @@ export default function ReplayPanel() {
         <input
           type="file"
           accept=".json"
+          disabled={replay.recording}
           onChange={e => {
             const file = e.target.files[0]
             if (file)

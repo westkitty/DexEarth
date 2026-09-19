@@ -154,3 +154,21 @@
     max-width: 44vw;
   }
 }
+
+@media (pointer: coarse) {
+  .workspace-hud button,
+  .workspace-hud select,
+  .event-timeline button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .workspace-hud input:not([type='checkbox']):not([type='range']) {
+    min-height: 44px;
+  }
+  .analysis-panel label:has(input[type='checkbox']) {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}

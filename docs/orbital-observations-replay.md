@@ -161,3 +161,19 @@ source availability/freshness, physical iPad/iPhone/Android GPU and gesture beha
 and multi-tab leader/follower interaction on physical devices require further
 validation. Two moderate development-only Vitest advisories remain after compatible
 `npm audit fix`; resolving them requires a major Vitest upgrade and was not forced.
+
+## Follow-up verification
+
+[The original-requirements audit](requirements-verification.md) covers every
+numbered request and documents the second pass's fixes. `npm run test:layers`
+adds fixture-backed browser integration checks against a fresh development server.
+It verifies the primary registry bridge used by correlation/threat: at most 1,000
+points, 200 lines and 4,000 vertices per snapshot, explicitly labeled sampled local
+analysis. It also checks overlays/LOD, cascade reset, cinematic controls and channel
+clock delivery. These fixtures are not current-source observations.
+
+Replay now normalizes the first event to zero, clamps backwards wall-clock jumps,
+and supports stepping individually through events sharing a timestamp. Time panel
+subscriptions clean up on unmount, and its new leader/follower selector exposes the
+existing same-origin BroadcastChannel behavior. Country label projection uses the
+API provided by Cesium 1.138, with one shared, disposable camera LOD listener.

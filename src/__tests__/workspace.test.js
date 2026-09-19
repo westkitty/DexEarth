@@ -1,10 +1,15 @@
+import { markersLayer } from '../layers/markers/layer.js'
 import { describe, it, expect, vi } from 'vitest'
 import { workspace } from './fixtures/workspace.js'
 vi.mock('../layers/satellites/layer.js', () => ({
   satellitesLayer: { isActive: () => true, activate: vi.fn(), deactivate: vi.fn() },
 }))
 vi.mock('../layers/markers/layer.js', () => ({
-  markersLayer: { getMarkers: () => [], isActive: () => false, showSnapshot: vi.fn() },
+  markersLayer: {
+    getMarkers: vi.fn(() => []),
+    isActive: vi.fn(() => false),
+    showSnapshot: vi.fn(),
+  },
 }))
 vi.mock('../layers/seismicSim/layer.js', () => ({
   seismicSimLayer: { getEvents: () => [], activate: vi.fn(), restoreEvents: vi.fn() },
@@ -26,6 +31,26 @@ import { configureWorkspace, applyWorkspace, captureWorkspace } from '../state/w
 import { getMode, getTimeMs } from '../state/timeController.js'
 import { publishDataset, getActiveDataset } from '../data/datasetStatus.js'
 describe('workspace restoration integration', () => {
+  it('captures the displayed marker snapshot rather than substituting persistent records', () => {
+    configureWorkspace({
+      viewer: {
+        isDestroyed: () => false,
+        camera: {
+          positionCartographic: { longitude: 0, latitude: 0, height: 1 },
+          heading: 0,
+          pitch: 0,
+          roll: 0,
+        },
+      },
+      toggles: {},
+      restoreLayers: vi.fn(),
+    })
+    markersLayer.isActive.mockReturnValueOnce(true)
+    markersLayer.getMarkers.mockReturnValueOnce([
+      { id: 'snapshot-1', title: 'Visible snapshot', lon: 1, lat: 2 },
+    ])
+    expect(captureWorkspace().markers[0].title).toBe('Visible snapshot')
+  })
   it('restores camera/layers/clock, preserving active dataset timestamps', () => {
     const setView = vi.fn(),
       restoreLayers = vi.fn(),

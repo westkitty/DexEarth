@@ -55,9 +55,9 @@ const S = {
 }
 
 export default function OverlaysPanel({ viewer }) {
-  const [borders, setBorders] = useState(false)
-  const [labels, setLabels] = useState(false)
-  const [follow, setFollow] = useState(false)
+  const [borders, setBorders] = useState(overlaySettings.borders)
+  const [labels, setLabels] = useState(overlaySettings.labels)
+  const [follow, setFollow] = useState(overlaySettings.followLabels)
   const [density, setDensity] = useState(200)
   const [followDensity, setFollowDensity] = useState(80)
   const [searchQ, setSearchQ] = useState('')
@@ -69,7 +69,11 @@ export default function OverlaysPanel({ viewer }) {
   // Load country index for search
   useEffect(() => {
     loadCountryIndex().then(setIndex)
-    overlaySettings.onSelectionChange = name => setSelected(name)
+    const selection = name => setSelected(name)
+    overlaySettings.onSelectionChange = selection
+    return () => {
+      if (overlaySettings.onSelectionChange === selection) overlaySettings.onSelectionChange = null
+    }
   }, [])
 
   // Search results — derived directly from searchQ and index (no effect needed)
@@ -146,10 +150,10 @@ export default function OverlaysPanel({ viewer }) {
   return (
     <div style={{ padding: '4px 0', color: '#AAFFCC' }}>
       {/* Borders */}
-      <div style={S.row}>
+      <label style={{ ...S.row, minHeight: 44 }}>
         <input type="checkbox" checked={borders} onChange={toggleBorders} />
         <span style={S.label}>Country Borders</span>
-      </div>
+      </label>
       {borders && (
         <div style={{ paddingLeft: '16px', marginBottom: '6px' }}>
           <div style={{ ...S.row, gap: '4px' }}>
@@ -176,10 +180,10 @@ export default function OverlaysPanel({ viewer }) {
       )}
 
       {/* Inside Labels */}
-      <div style={S.row}>
+      <label style={{ ...S.row, minHeight: 44 }}>
         <input type="checkbox" checked={labels} onChange={toggleLabels} />
         <span style={S.label}>Country Labels (Inside)</span>
-      </div>
+      </label>
       {labels && (
         <div style={{ paddingLeft: '16px', marginBottom: '6px' }}>
           <span style={{ ...S.label, color: '#AAFFCC88' }}>Density {density}</span>
@@ -196,10 +200,10 @@ export default function OverlaysPanel({ viewer }) {
       )}
 
       {/* Follow Labels */}
-      <div style={S.row}>
+      <label style={{ ...S.row, minHeight: 44 }}>
         <input type="checkbox" checked={follow} onChange={toggleFollow} />
         <span style={S.label}>Labels (Follow Borders)</span>
-      </div>
+      </label>
       {follow && (
         <div style={{ paddingLeft: '16px', marginBottom: '6px' }}>
           <span style={{ ...S.label, color: '#AAFFCC88' }}>Density {followDensity}</span>

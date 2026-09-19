@@ -24,10 +24,11 @@ export function getSessionEvents() {
   return events
 }
 export function withoutRecording(fn) {
+  const previous = suppressed
   suppressed = true
   try {
     return fn()
   } finally {
-    suppressed = false
+    suppressed = previous
   }
 }

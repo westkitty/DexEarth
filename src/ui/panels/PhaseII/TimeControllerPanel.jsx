@@ -1,3 +1,6 @@
+import * as Cesium from 'cesium'
+import { buildTerminatorPolylineStable } from '../../../utils/terminator.js'
+import * as settings from '../../../state/settingsStore.js'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import * as tc from '../../../state/timeController.js'
 
@@ -50,7 +53,13 @@ const STYLE = {
   },
 }
 
+function setSceneLighting(viewer, enabled) {
+  if (viewer?.scene?.globe) viewer.scene.globe.enableLighting = enabled
+}
+
 export default function TimeControllerPanel({ viewer }) {
+  const [wallTime, setWallTime] = useState(() => Date.now())
+  const [leader, setLeader] = useState(settings.get('broadcastLeader'))
   const [mode, setModeState] = useState(tc.getMode())
   const [displayTime, setDisplayTime] = useState(tc.getTimeMs())
   const [speed, setSpeed] = useState(tc.getReplaySpeed())
@@ -63,9 +72,14 @@ export default function TimeControllerPanel({ viewer }) {
 
   // Subscribe to time changes
   useEffect(() => {
-    const unsub = tc.subscribe(t => setDisplayTime(t))
+    const unsub = tc.subscribe(t => {
+      setDisplayTime(t)
+      setModeState(tc.getMode())
+      setSpeed(tc.getReplaySpeed())
+    })
     // Also poll in LIVE mode for smooth display
     const iv = setInterval(() => {
+      setWallTime(Date.now())
       if (tc.getMode() === MODES.LIVE) setDisplayTime(Date.now())
     }, 1000)
     return () => {
@@ -97,7 +111,7 @@ export default function TimeControllerPanel({ viewer }) {
   const handleSunlight = useCallback(
     v => {
       setSunlight(v)
-      if (viewer?.scene?.globe) viewer.scene.globe.enableLighting = v
+      setSceneLighting(viewer, v)
     },
     [viewer]
   )
@@ -105,52 +119,48 @@ export default function TimeControllerPanel({ viewer }) {
   // Terminator rendering
   useEffect(() => {
     if (!viewer) return
-    import('../../../utils/terminator.js').then(({ buildTerminatorPolylineStable }) => {
-      import('cesium').then(Cesium => {
-        const updateTerminator = timeMs => {
-          if (terminatorRef.current) {
-            try {
-              viewer.scene.primitives.remove(terminatorRef.current)
-            } catch {
-              /* ignore */
-            }
-            terminatorRef.current = null
-          }
-          if (!terminator) return
-          const pts = buildTerminatorPolylineStable(timeMs)
-          const positions = pts.map(([lo, la]) => Cesium.Cartesian3.fromDegrees(lo, la, 2000))
-          const lines = new Cesium.PolylineCollection()
-          lines.add({
-            positions,
-            width: terminatorWidth,
-            material: Cesium.Material.fromType('Color', {
-              color: Cesium.Color.fromCssColorString('#FFFFFF').withAlpha(terminatorOpacity),
-            }),
-          })
-          viewer.scene.primitives.add(lines)
-          terminatorRef.current = lines
+    const updateTerminator = timeMs => {
+      if (terminatorRef.current) {
+        try {
+          viewer.scene.primitives.remove(terminatorRef.current)
+        } catch {
+          /* ignore */
         }
-
-        const unsub = tc.subscribe(updateTerminator)
-        updateTerminator(tc.getTimeMs())
-        return () => {
-          unsub()
-          if (terminatorRef.current) {
-            try {
-              viewer.scene.primitives.remove(terminatorRef.current)
-            } catch {
-              /* ignore */
-            }
-            terminatorRef.current = null
-          }
-        }
+        terminatorRef.current = null
+      }
+      if (!terminator) return
+      const pts = buildTerminatorPolylineStable(timeMs)
+      const positions = pts.map(([lo, la]) => Cesium.Cartesian3.fromDegrees(lo, la, 2000))
+      const lines = new Cesium.PolylineCollection()
+      lines.add({
+        positions,
+        width: terminatorWidth,
+        material: Cesium.Material.fromType('Color', {
+          color: Cesium.Color.fromCssColorString('#FFFFFF').withAlpha(terminatorOpacity),
+        }),
       })
-    })
+      viewer.scene.primitives.add(lines)
+      terminatorRef.current = lines
+    }
+
+    const unsub = tc.subscribe(updateTerminator)
+    updateTerminator(tc.getTimeMs())
+    return () => {
+      unsub()
+      if (terminatorRef.current) {
+        try {
+          viewer.scene.primitives.remove(terminatorRef.current)
+        } catch {
+          /* ignore */
+        }
+        terminatorRef.current = null
+      }
+    }
   }, [viewer, terminator, terminatorOpacity, terminatorWidth])
 
   const btnStyle = active => (active ? { ...STYLE.btn, ...STYLE.btnActive } : STYLE.btn)
   const sliderPct = () => {
-    const now = Date.now()
+    const now = wallTime
     const range = 7 * 86_400_000
     const offset = displayTime - now
     return Math.round((offset / range) * 1000)
@@ -158,6 +168,21 @@ export default function TimeControllerPanel({ viewer }) {
 
   return (
     <div style={{ ...STYLE.panel, position: 'relative' }}>
+      <label style={STYLE.row}>
+        Multi-tab role
+        <select
+          aria-label="Multi-tab role"
+          value={leader ? 'leader' : 'follower'}
+          onChange={e => {
+            const value = e.target.value === 'leader'
+            setLeader(value)
+            settings.set('broadcastLeader', value)
+          }}
+        >
+          <option value="leader">Leader (broadcast)</option>
+          <option value="follower">Follower (receive)</option>
+        </select>
+      </label>
       <div
         style={{
           ...STYLE.label,

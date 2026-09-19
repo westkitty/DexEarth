@@ -9,7 +9,6 @@ import {
   downloadJson,
   MAX_IMPORT_BYTES,
 } from '../../../storage/observations.js'
-import { markersGetAll } from '../../../storage/db.js'
 export default function ObservationsPanel() {
   const [rows, setRows] = useState([]),
     [name, setName] = useState('Observation'),
@@ -45,7 +44,6 @@ export default function ObservationsPanel() {
         onClick={() =>
           run(async () => {
             const w = captureWorkspace()
-            w.markers = await markersGetAll()
             await saveObservation(createObservation(name, w, notes))
           })
         }

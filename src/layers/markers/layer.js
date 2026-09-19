@@ -80,7 +80,6 @@ export const markersLayer = {
     _markers.forEach(m => _removeEntityForMarker(m.id))
     _markers = []
     _entities.clear()
-    _onChangeCallbacks = []
     _viewer = null
   },
 
@@ -143,6 +142,7 @@ export const markersLayer = {
     _viewer = viewer
     _markers = structuredClone(markers)
     _markers.forEach(_addEntityForMarker)
+    _notifyChange()
   },
   isActive() {
     return !!_viewer

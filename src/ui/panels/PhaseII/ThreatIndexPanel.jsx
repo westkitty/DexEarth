@@ -75,6 +75,10 @@ export default function ThreatIndexPanel({ viewer }) {
 
   return (
     <div style={{ ...S.panel, position: 'relative' }}>
+      <p>
+        Heuristic analysis of bounded current geometry samples. Not a measured or official threat
+        level.
+      </p>
       <div
         style={{
           ...S.label,

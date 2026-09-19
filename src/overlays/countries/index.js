@@ -36,6 +36,7 @@ export const settings = {
 
 let _restoreHighlight = null
 let _debounceTimer = null
+let _cameraUnsubscribe = null
 
 // ── Internal helpers ───────────────────────────────────────────────────────────
 
@@ -60,7 +61,7 @@ function _removePrimitive(col) {
 
 function _rebuildBorders() {
   _removePrimitive(_borderCollection)
-  if (!settings.borders || !_viewer || !_features.length) {
+  if (!settings.borders || !_viewer || _viewer.isDestroyed() || !_features.length) {
     _borderCollection = null
     return
   }
@@ -75,7 +76,7 @@ function _rebuildBorders() {
 
 function _rebuildLabels() {
   _removePrimitive(_labelCollection)
-  if (!settings.labels || !_viewer || !_features.length) {
+  if (!settings.labels || !_viewer || _viewer.isDestroyed() || !_features.length) {
     _labelCollection = null
     return
   }
@@ -93,7 +94,7 @@ function _rebuildLabels() {
 
 function _rebuildFollowLabels() {
   _removePrimitive(_followCollection)
-  if (!settings.followLabels || !_viewer || !_features.length) {
+  if (!settings.followLabels || !_viewer || _viewer.isDestroyed() || !_features.length) {
     _followCollection = null
     return
   }
@@ -146,7 +147,8 @@ function _scheduleRebuild() {
 // ── Click picking ──────────────────────────────────────────────────────────────
 
 function _setupClickHandler() {
-  if (!_viewer) return
+  if (!_viewer || _viewer.isDestroyed() || _handler) return
+  _cameraUnsubscribe = _viewer.camera.moveEnd.addEventListener(_scheduleRebuild)
   _handler = new Cesium.ScreenSpaceEventHandler(_viewer.scene.canvas)
   _handler.setInputAction(click => {
     const picked = _viewer.scene.pick(click.position)
@@ -233,13 +235,11 @@ export const countryLabelsLayer = {
     _rebuildLabels()
     if (!_handler) _setupClickHandler()
     // Listen for camera move
-    viewer.camera.moveEnd.addEventListener(_scheduleRebuild)
   },
   deactivate() {
     _removePrimitive(_labelCollection)
     _labelCollection = null
     settings.labels = false
-    if (_viewer) _viewer.camera.moveEnd.removeEventListener(_scheduleRebuild)
     if (!settings.borders && !settings.followLabels) _destroyHandler()
   },
   tick() {
@@ -262,13 +262,11 @@ export const countryFollowLabelsLayer = {
     await _ensureGeojson()
     _rebuildFollowLabels()
     if (!_handler) _setupClickHandler()
-    viewer.camera.moveEnd.addEventListener(_scheduleRebuild)
   },
   deactivate() {
     _removePrimitive(_followCollection)
     _followCollection = null
     settings.followLabels = false
-    if (_viewer) _viewer.camera.moveEnd.removeEventListener(_scheduleRebuild)
     if (!settings.borders && !settings.labels) _destroyHandler()
   },
   tick() {
@@ -289,6 +287,9 @@ export const countryFollowLabelsLayer = {
 }
 
 function _destroyHandler() {
+  clearTimeout(_debounceTimer)
+  _cameraUnsubscribe?.()
+  _cameraUnsubscribe = null
   if (_handler) {
     _handler.destroy()
     _handler = null

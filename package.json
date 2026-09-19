@@ -13,7 +13,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "ci": "npm run lint && npm run format:check && npm run test:run && npm run build",
-    "test:browser": "node scripts/browser-smoke.mjs"
+    "test:browser": "node scripts/browser-smoke.mjs",
+    "test:layers": "node scripts/layer-audit-smoke.mjs"
   },
   "dependencies": {
     "@use-gesture/react": "^10.3.1",

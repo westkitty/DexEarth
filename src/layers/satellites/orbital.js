@@ -87,7 +87,7 @@ export function samplePath(
   timeMs,
   { minutes = 90, samples = 121, direction = 1, safeMode = false } = {}
 ) {
-  const count = Math.round(bound(samples, 2, safeMode ? 31 : MAX_PATH_SAMPLES, 121))
+  const count = Math.round(bound(samples, 2, safeMode ? 31 : MAX_PATH_SAMPLES, safeMode ? 31 : 121))
   const duration = bound(minutes, 5, 180, 90) * 60000
   return Array.from({ length: count }, (_, i) =>
     propagateRecord(record, timeMs + ((direction < 0 ? -1 : 1) * duration * i) / (count - 1))

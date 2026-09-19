@@ -105,7 +105,7 @@ export function buildLabelCollection({
 
     // Project to screen
     const cart3 = Cesium.Cartesian3.fromDegrees(rp[0], rp[1], 500)
-    const screenPt = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, cart3)
+    const screenPt = Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene, cart3)
 
     // If off-screen or scene not yet rendered, skip collision detection
     // but still add the label if it fits in maxLabels.

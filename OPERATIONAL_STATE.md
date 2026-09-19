@@ -77,10 +77,11 @@ local wrapper/private paths are excluded from formatting.
   behavior; cache states/expiry/bounds and v2→v3 IndexedDB preservation; observation
   validation and camera/layer/clock restoration without freshness mutation; replay
   order/pause/step/scrub/bounds/limitations; drawer/selection/unsubscribe behavior.
-- Browser-emulated Chromium 153, software rendering: bundled online startup,
+- Browser-emulated Chromium 153, software rendering and touch-capable context: bundled online startup,
   selection/inspector, pass prediction, watchlist persistence, observation
   save/duplicate/load/export/import, replay record/play/pause/reset/step/export/import,
-  full production reload with browser networking disabled, Safe Mode control.
+  full production reload with browser networking disabled, Safe Mode control. The
+  re-audit additionally verifies rename, corrupt-import refusal and confirmed delete.
 - Browser-emulated layouts: 390×844, 768×1024, 1024×1366, 1440×1000. Checked bounded
   drawer height, no document horizontal overflow and usable panel controls.
 - Browser smoke exposed and fixed offline-manifest/Cesium copy ordering and the
@@ -96,7 +97,7 @@ Final verification on 2026-09-19:
 | ------------------------------------------------- | ---------------------------------------------------------- |
 | `npm run lint`                                    | PASS                                                       |
 | `npm run format:check`                            | PASS                                                       |
-| `npm run test:run`                                | PASS — 104 tests, 15 files (all original 77 preserved)     |
+| `npm run test:run`                                | PASS — 114 tests, 17 files (all original 77 preserved)     |
 | `npm run build`                                   | PASS — non-failing existing dynamic/static import warnings |
 | `npm run ci`                                      | PASS                                                       |
 | `npm run test:browser` (configured Chromium path) | PASS — all smoke checks, zero page errors                  |
@@ -119,3 +120,38 @@ units, import validation, limits and instructions.
   compatible dependency updates removed the initial high/critical findings.
   A major Vitest upgrade was not forced. Do not expose the Vitest development
   server to untrusted networks.
+
+## Second requirement audit
+
+The follow-up user request was audited against every original section (0–16).
+See [requirements-verification.md](docs/requirements-verification.md) for the
+complete matrix, concrete source/test evidence, fixes and qualified acceptance.
+
+The local checkout's files matched published `56c5dcb` exactly but its restored
+Git metadata pointed to the baseline. After comparing all blobs to the remote,
+local history/index were aligned without writing working files. Checkpoint
+`checkpoint-audit-56c5dcb` precedes this audit's corrections.
+
+Additional defects corrected: zero-offset/monotonic replay recording, same-offset
+stepping, reset/step return view, visible marker snapshot preservation, marker
+subscription lifecycle, primary-layer analytic geometry/cascade wiring and async
+unload guards, actual Time panel effect cleanup, multi-tab role controls, current
+Cesium label projection API and shared country/state LOD listener, catalog unknown
+and bundled timestamp truth, legacy cache startup eviction, Safe Mode NaN sample
+bounds, and coarse-pointer touch target sizes.
+
+Additional verification: `npm run test:layers` against a freshly started development
+server with explicitly intercepted remote **fixtures**. Exercised every primary
+toggle, actual selected orbit collection cleanup, primary→threat/correlation
+geometry, markers/geofences, seismic/cascade categories and reset, cinematic
+start/pause, BroadcastChannel delivery, country inside/follow labels and state/
+province LOD below 1,500 km, plus application of all five style presets (including
+automatic Safe Mode fallbacks). Zero page errors or Cesium render-stop errors.
+This does not verify full shader fidelity on a physical GPU or real source freshness.
+
+Current browser evidence is in `/home/user/dexearth-audit-evidence/` outside Git.
+The production smoke uses 44px coarse-pointer controls and all four requested
+viewports. Software-rendered screenshots needed a longer capture timeout; no FPS
+promise is inferred. Tests total **114 passing across 17 files**, with the original
+77 tests retained. Production and layer browser scripts both pass. Final lint,
+format, build and complete CI are rerun before delivery.

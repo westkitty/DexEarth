@@ -1,3 +1,4 @@
+import { enforceCacheBounds } from '../storage/cache.js'
 import { registerLayer, getLayer } from '../state/layerRegistry.js'
 import { satellitesLayer } from '../layers/satellites/layer.js'
 import { seismicSimLayer } from '../layers/seismicSim/layer.js'
@@ -38,9 +39,12 @@ export default function WorkspaceRoot({ viewer, toggles, restoreLayers }) {
     if (viewer) emitSessionEvent('layers', { layers: Object.keys(toggles).filter(k => toggles[k]) })
   }, [viewer, toggles, restoreLayers])
   useEffect(() => {
-    Promise.all([initWatchlist(), initViewStore(), markersGetAll().then(setSavedMarkers)]).catch(
-      () => setStorageError('Local storage unavailable. Saves cannot be guaranteed.')
-    )
+    Promise.all([
+      initWatchlist(),
+      initViewStore(),
+      markersGetAll().then(setSavedMarkers),
+      enforceCacheBounds(),
+    ]).catch(() => setStorageError('Local storage unavailable. Saves cannot be guaranteed.'))
     return subscribeSessionEvents(event => {
       setEvents([...getSessionEvents()])
       if (replay.recording) replay.record(event)
@@ -80,7 +84,7 @@ export default function WorkspaceRoot({ viewer, toggles, restoreLayers }) {
       getTimeMs: tc.getTimeMs,
       getToggles: () => togglesRef.current,
       applyState: msg => {
-        if (replay.recording || replay.playing) return
+        if (replay.recording || replay.playing || tc.getMode() === 'REPLAY') return
         if (msg.camera)
           viewer.camera.setView({
             destination: Cesium.Cartesian3.fromDegrees(
