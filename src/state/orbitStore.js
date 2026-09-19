@@ -38,6 +38,31 @@ export function updateOrbit(patch) {
     showGround: state.showGround,
   })
 }
+// UI edits must remain a valid workspace between keystrokes: replay captures
+// each emitted state, not only the final range after both endpoints are edited.
+export function updateOrbitFilter(key, value) {
+  const filters = { ...state.filters }
+  const ranges = {
+    minAlt: [0, 100000, 'maxAlt'],
+    maxAlt: [0, 100000, 'minAlt'],
+    minInclination: [0, 180, 'maxInclination'],
+    maxInclination: [0, 180, 'minInclination'],
+  }
+  const range = ranges[key]
+  if (range) {
+    if (!Number.isFinite(value)) return
+    const [min, max, other] = range
+    filters[key] = Math.max(min, Math.min(max, value))
+    filters[other] = key.startsWith('min')
+      ? Math.max(filters[other], filters[key])
+      : Math.min(filters[other], filters[key])
+  } else if (key === 'search' && typeof value === 'string') filters.search = value.slice(0, 100)
+  else if (key === 'orbit' && ['ALL', 'LEO', 'MEO', 'GEO', 'OTHER'].includes(value))
+    filters.orbit = value
+  else if (key === 'watchedOnly' && typeof value === 'boolean') filters.watchedOnly = value
+  else return
+  updateOrbit({ filters })
+}
 export async function initWatchlist() {
   const [watchlist, preferences] = await Promise.all([
     userRecords('watchlist'),

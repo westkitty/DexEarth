@@ -13,6 +13,7 @@ const SEVERITY_COLORS = {
   classified: '#CC00FF',
 }
 
+let _generation = 0
 let _viewer = null
 let _snapshotMode = false
 let _entities = new Map() // id → Cesium.Entity
@@ -69,14 +70,18 @@ function _notifyChange() {
 export const markersLayer = {
   async activate({ viewer }) {
     if (_viewer === viewer) return
+    this.deactivate()
     _viewer = viewer
-    _snapshotMode = false
+    const generation = _generation
     const stored = await markersGetAll()
+    if (generation !== _generation || _viewer !== viewer || viewer.isDestroyed?.()) return
     _markers = stored || []
     _markers.forEach(_addEntityForMarker)
   },
 
   deactivate() {
+    _generation++
+    _snapshotMode = false
     _markers.forEach(m => _removeEntityForMarker(m.id))
     _markers = []
     _entities.clear()
@@ -95,10 +100,12 @@ export const markersLayer = {
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
   async addMarker({ lon, lat, title, tags = [], notes = '', severity = 'info' }) {
+    const generation = _generation
     const id = _snapshotMode
       ? `snapshot-${crypto.randomUUID()}`
       : await markerAdd({ lon, lat, title, tags, notes, severity })
     const marker = { id, lon, lat, title, tags, notes, severity, createdAt: Date.now() }
+    if (generation !== _generation) return marker
     _markers.push(marker)
     _addEntityForMarker(marker)
     pulseHud('marker', title)
@@ -107,10 +114,12 @@ export const markersLayer = {
   },
 
   async updateMarker(id, updates) {
+    const generation = _generation
     const idx = _markers.findIndex(m => m.id === id)
     if (idx < 0) return
     const updated = { ..._markers[idx], ...updates }
     if (!_snapshotMode) await markerUpdate(updated)
+    if (generation !== _generation) return
     _markers[idx] = updated
     _removeEntityForMarker(id)
     _addEntityForMarker(updated)
@@ -118,7 +127,9 @@ export const markersLayer = {
   },
 
   async deleteMarker(id) {
+    const generation = _generation
     if (!_snapshotMode) await markerDelete(id)
+    if (generation !== _generation) return
     _markers = _markers.filter(m => m.id !== id)
     _removeEntityForMarker(id)
     _notifyChange()
@@ -137,6 +148,7 @@ export const markersLayer = {
     return _snapshotMode
   },
   showSnapshot(viewer, markers) {
+    _generation++
     _snapshotMode = true
     _markers.forEach(m => _removeEntityForMarker(m.id))
     _viewer = viewer

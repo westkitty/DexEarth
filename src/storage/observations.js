@@ -50,7 +50,7 @@ export function validateWorkspace(w) {
     )
   )
     fail()
-  if (new Set(w.markers.map(m => m.id)).size !== w.markers.length) fail()
+  if (new Set(w.markers.map(m => String(m.id))).size !== w.markers.length) fail()
   if (
     !Array.isArray(w.datasets) ||
     w.datasets.length > 100 ||

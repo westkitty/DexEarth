@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 // Browser-emulated validation; run against a production preview for offline checks.
 import { chromium, expect } from '@playwright/test'
 import process from 'node:process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 const base = process.env.DEXEARTH_URL || 'http://localhost:4173'
 const output = process.env.DEXEARTH_EVIDENCE || 'test-results/browser'
 mkdirSync(output, { recursive: true })
@@ -38,6 +38,7 @@ try {
   await page.getByRole('button', { name: 'Save observer locally', exact: true }).click()
   await page.getByRole('button', { name: 'Predict next 24h passes', exact: true }).click()
   await expect(page.getByText('Rise/start:', { exact: false }).first()).toBeVisible()
+  await expect(page.getByText(/Max: .*° at .* UTC/).first()).toBeVisible()
   await page.getByRole('button', { name: 'Add to watchlist', exact: true }).click()
   results.push(
     'Bundled startup, selected inspector, pass prediction and watchlist add: PASS (not proof of remote freshness)'
@@ -61,6 +62,18 @@ try {
   await page.getByRole('button', { name: 'Export JSON', exact: true }).first().click()
   const observationPath = `${output}/observation.json`
   await (await downloaded).saveAs(observationPath)
+  const collision = JSON.parse(readFileSync(observationPath, 'utf8'))
+  collision.workspace.markers = [
+    { id: 1, title: 'numeric ID', lon: 0, lat: 0 },
+    { id: '1', title: 'string ID', lon: 1, lat: 1 },
+  ]
+  await page.getByLabel('Import observation JSON').setInputFiles({
+    name: 'colliding-markers.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(collision)),
+  })
+  await expect(page.locator('[aria-label="Observation sets"] [role="alert"]')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Load', exact: true })).toHaveCount(2)
   await page.getByLabel('Import observation JSON').setInputFiles(observationPath)
   await expect(page.getByRole('button', { name: 'Load', exact: true })).toHaveCount(3)
   results.push('Observation save, duplicate, load, export and validated re-import: PASS')
@@ -68,6 +81,17 @@ try {
   await page.getByRole('button', { name: 'Start recording', exact: true }).click()
   await page.locator('#tour-tab-satellites').click()
   await page.getByLabel('Select satellite (or tap globe)').selectOption('20580')
+  await page.getByText('Satellite filters / display cap', { exact: true }).click()
+  await page.getByLabel('Min altitude km', { exact: true }).fill('400')
+  await page.getByLabel('Max altitude km', { exact: true }).fill('100')
+  await expect(page.getByLabel('Min altitude km', { exact: true })).toHaveValue('100')
+  await page.getByLabel('Min inclination °', { exact: true }).fill('100')
+  await page.getByLabel('Max inclination °', { exact: true }).fill('40')
+  await expect(page.getByLabel('Min inclination °', { exact: true })).toHaveValue('40')
+  await page.getByLabel('Min altitude km', { exact: true }).fill('0')
+  await page.getByLabel('Max altitude km', { exact: true }).fill('100000')
+  await page.getByLabel('Min inclination °', { exact: true }).fill('0')
+  await page.getByLabel('Max inclination °', { exact: true }).fill('180')
   await page.locator('#tour-tab-sessions').click()
   await page.getByRole('button', { name: 'Stop & save', exact: true }).click()
   await page.getByRole('button', { name: 'Play', exact: true }).click()
@@ -78,6 +102,14 @@ try {
   await page.getByRole('button', { name: 'Export replay', exact: true }).click()
   const replayPath = `${output}/replay.json`
   await (await replayDownload).saveAs(replayPath)
+  const recorded = JSON.parse(readFileSync(replayPath, 'utf8'))
+  expect(recorded.events.some(e => e.workspace.orbit.filters.maxAlt === 100)).toBe(true)
+  expect(recorded.events.some(e => e.workspace.orbit.filters.maxInclination === 40)).toBe(true)
+  for (const e of recorded.events) {
+    const f = e.workspace.orbit.filters
+    expect(f.minAlt).toBeLessThanOrEqual(f.maxAlt)
+    expect(f.minInclination).toBeLessThanOrEqual(f.maxInclination)
+  }
   await page.getByLabel('Import replay JSON').setInputFiles(replayPath)
   await page.getByRole('button', { name: 'Exit replay / restore view', exact: true }).click()
   results.push(
@@ -87,7 +119,12 @@ try {
   page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: 'Delete', exact: true }).last().click()
   await expect(page.getByRole('button', { name: 'Load', exact: true })).toHaveCount(2)
-  results.push('Observation rename, corrupt import refusal and confirmed deletion: PASS')
+  results.push(
+    'Observation rename, corrupt/colliding-marker import refusal and confirmed deletion: PASS'
+  )
+  results.push(
+    'Crossed altitude/inclination edits recorded as valid ranges; peak pass UTC displayed: PASS'
+  )
   // Reach production worker readiness before disconnecting everything.
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready

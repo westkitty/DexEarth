@@ -91,13 +91,13 @@ local wrapper/private paths are excluded from formatting.
   Browser CDN installation was blocked; an npm-distributed Chromium binary and
   its packaged libraries enabled validation without adding a production dependency.
 
-Latest re-verification on 2026-09-19 (after baseline `6d7efad`):
+Latest assignment check on 2026-09-19 (after baseline `10e9615`):
 
 | Command                                                   | Result                                                     |
 | --------------------------------------------------------- | ---------------------------------------------------------- |
 | `npm run lint`                                            | PASS                                                       |
 | `npm run format:check`                                    | PASS                                                       |
-| `npm run test:run`                                        | PASS — 131 tests, 18 files (all original 77 preserved)     |
+| `npm run test:run`                                        | PASS — 146 tests, 20 files (all original 77 preserved)     |
 | `npm run build`                                           | PASS — non-failing existing dynamic/static import warnings |
 | `npm run ci`                                              | PASS                                                       |
 | `npm run test:browser` (configured Chromium path)         | PASS — all smoke checks, zero page errors                  |
@@ -157,7 +157,7 @@ promise is inferred. That audit totaled **114 passing across 17 files**, with th
 77 tests retained. Production and layer browser scripts both pass. Final lint,
 format, build and complete CI are rerun before delivery.
 
-## Latest repeated verification
+## Previous repeated verification (delivered as `10e9615`)
 
 Started clean at published `6d7efad`; local checkpoint
 `checkpoint-reverify-6d7efad` preceded edits. Rechecked the original requirement
@@ -175,8 +175,35 @@ checks all pass; no page errors or detected Cesium render-stop errors. The table
 above records the latest command gates, including complete local CI. This does
 not imply GitHub-hosted CI ran on the Arena branch.
 
-Latest browser evidence: `/home/user/dexearth-reverification-evidence/` outside
+Previous browser evidence: `/home/user/dexearth-reverification-evidence/` outside
 Git; current logs: `/home/user/dexearth-third-*.log`. Built application JS:
 437.71 kB / 140.56 kB gzip, excluding Cesium/assets. All hardware, live-source and
 optional authenticated FIRMS limitations above still apply. The final report
 supplies the commit and independent remote SHA verification on the fixed branch.
+
+## Current assignment verification
+
+Starting local/remote commit: `10e9615`; clean initial worktree, checkpoint
+`checkpoint-assignment-10e9615`. The original numbered requirements were checked
+against implementation and runnable evidence again. Corrected crossed orbital
+filter bounds (invalid saved/recorded workspaces), missing pass-peak UTC display,
+marker ID aliases that collide in Cesium, and pending marker load/write render
+completions that could overwrite restored snapshots or refill unloaded layers.
+Viewer replacement now cleans the old marker entities. Persistent writes already
+requested are not cancelled; stale completions cannot edit the new snapshot.
+
+Added 15 tests; **146 tests / 20 files pass**. Separately reran all seven original
+baseline test files: **77 / 77 pass**. Full local CI passes. Both browser suites
+were rerun on the changed code; production smoke now also records crossed filters,
+checks downloaded replay bounds, displays peak-pass UTC and rejects colliding
+marker imports. Offline reload, all requested viewports, Safe Mode, fixture-backed
+layers/analysis/overlays/channels pass with zero page errors. The layer audit also
+reports no Cesium render-stop errors. Existing build import warnings are non-fatal.
+
+Current evidence: `/home/user/dexearth-assignment-evidence/`;
+logs: `/home/user/dexearth-assignment-*.log` (all outside Git).
+Application JS: 438.54 kB / 140.88 kB gzip, excluding Cesium/assets. No dependency
+or protected-path changes. Physical hardware, sustained FPS, live-source freshness
+and optional authenticated FIRMS remain unverified, not silently marked passed.
+The final delivery report gives the new commit and matching remote SHA on
+`arena/01a0b75b-dexearth`; master is untouched.

@@ -1,0 +1,112 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { markersLayer } from '../layers/markers/layer.js'
+import { markersGetAll, markerAdd, markerUpdate, markerDelete } from '../storage/db.js'
+vi.mock('../storage/db.js', () => ({
+  markersGetAll: vi.fn(),
+  markerAdd: vi.fn(),
+  markerUpdate: vi.fn(),
+  markerDelete: vi.fn(),
+}))
+vi.mock('../utils/pulse.js', () => ({ pulseHud: vi.fn() }))
+const saved = { id: 1, lon: 1, lat: 2, title: 'Persistent marker' }
+const snapshot = { id: 'snapshot', lon: 3, lat: 4, title: 'Observation marker' }
+function deferred() {
+  let resolve
+  const promise = new Promise(r => {
+    resolve = r
+  })
+  return { promise, resolve }
+}
+function viewer() {
+  const entities = new Map()
+  return {
+    isDestroyed: () => false,
+    entities: {
+      add: vi.fn(entity => {
+        if (entities.has(entity.id)) throw new Error('Duplicate Cesium entity ID')
+        entities.set(entity.id, entity)
+        return entity
+      }),
+      remove: vi.fn(entity => entities.delete(entity.id)),
+    },
+    ids: () => [...entities.keys()],
+  }
+}
+afterEach(() => {
+  markersLayer.deactivate()
+  vi.clearAllMocks()
+})
+
+describe('assignment: snapshot restore and unloaded marker lifecycle', () => {
+  it('does not overwrite an observation snapshot with a pending persistent load', async () => {
+    const load = deferred(),
+      v = viewer()
+    markersGetAll.mockReturnValueOnce(load.promise)
+    const activation = markersLayer.activate({ viewer: v })
+    markersLayer.showSnapshot(v, [snapshot])
+    load.resolve([saved])
+    await activation
+    expect(markersLayer.getMarkers()).toEqual([snapshot])
+    expect(v.ids()).toEqual(['marker_snapshot'])
+    expect(markersLayer.isSnapshot()).toBe(true)
+  })
+  it('ignores a late activation after deactivation', async () => {
+    const load = deferred(),
+      v = viewer()
+    markersGetAll.mockReturnValueOnce(load.promise)
+    const activation = markersLayer.activate({ viewer: v })
+    markersLayer.deactivate()
+    load.resolve([saved])
+    await activation
+    expect(markersLayer.getMarkers()).toEqual([])
+    expect(v.ids()).toEqual([])
+    expect(markersLayer.isActive()).toBe(false)
+  })
+  it('cleans the previous viewer and rejects its late load after replacement', async () => {
+    const first = deferred(),
+      a = viewer(),
+      b = viewer()
+    markersGetAll.mockReturnValueOnce(first.promise).mockResolvedValueOnce([snapshot])
+    const activation = markersLayer.activate({ viewer: a })
+    await markersLayer.activate({ viewer: b })
+    first.resolve([saved])
+    await activation
+    expect(a.ids()).toEqual([])
+    expect(b.ids()).toEqual(['marker_snapshot'])
+    expect(markersLayer.getMarkers()).toEqual([snapshot])
+  })
+  it('removes existing entities when switching viewers', async () => {
+    const a = viewer(),
+      b = viewer()
+    markersGetAll.mockResolvedValue([saved])
+    await markersLayer.activate({ viewer: a })
+    await markersLayer.activate({ viewer: b })
+    expect(a.ids()).toEqual([])
+    expect(b.ids()).toEqual(['marker_1'])
+  })
+  it.each(['add', 'update', 'delete'])(
+    'does not apply a pending %s to a newly restored snapshot',
+    async operation => {
+      const v = viewer(),
+        write = deferred()
+      markersGetAll.mockResolvedValueOnce([saved])
+      await markersLayer.activate({ viewer: v })
+      let pending
+      if (operation === 'add') {
+        markerAdd.mockReturnValueOnce(write.promise)
+        pending = markersLayer.addMarker({ ...saved, title: 'New persistent marker' })
+      } else if (operation === 'update') {
+        markerUpdate.mockReturnValueOnce(write.promise)
+        pending = markersLayer.updateMarker(saved.id, { title: 'Updated persistent marker' })
+      } else {
+        markerDelete.mockReturnValueOnce(write.promise)
+        pending = markersLayer.deleteMarker(saved.id)
+      }
+      markersLayer.showSnapshot(v, [{ ...snapshot, id: saved.id }])
+      write.resolve(2)
+      await pending
+      expect(markersLayer.getMarkers()).toEqual([{ ...snapshot, id: saved.id }])
+      expect(v.ids()).toEqual(['marker_1'])
+    }
+  )
+})

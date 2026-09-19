@@ -178,11 +178,20 @@ subscriptions clean up on unmount, and its new leader/follower selector exposes 
 existing same-origin BroadcastChannel behavior. Country label projection uses the
 API provided by Cesium 1.138, with one shared, disposable camera LOD listener.
 
-The latest repeat audit adds regression coverage for explicit repeated replay
+The preceding repeat audit added regression coverage for explicit repeated replay
 seeks versus continuous tick reuse, invalid imports preserving recordings,
 near-8-MiB export/import round trips, corrupt/future cache dates and invalid TLE
 fallbacks. Exports use compact JSON to honor the validated import size. Malformed
 external cache timestamps do not count as fresh, and malformed bundles report
-unavailable instead of a successful fallback. The full suite passes 131 tests in
+unavailable instead of a successful fallback. That audit passed 131 tests in
 18 files; both browser suites were rerun. Physical GPU/device performance and
 upstream availability remain unverified.
+
+The current assignment check passes **146 tests in 20 files**, plus both browser
+suites. Editing either orbital range endpoint adjusts its partner to preserve
+minimum ≤ maximum; every intermediate recorded/saved workspace stays valid. Pass
+results display maximum-elevation UTC as well as elevation. Observation/replay
+imports reject marker IDs that would collide after string conversion. Pending
+marker storage operations cannot overwrite a newly restored snapshot or populate
+an unloaded viewer; already-requested persistent writes still finish in storage.
+The original seven test files were also rerun separately (all 77 tests pass).

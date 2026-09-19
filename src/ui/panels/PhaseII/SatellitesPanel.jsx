@@ -6,6 +6,7 @@ import {
   getOrbitState,
   subscribeOrbit,
   updateOrbit,
+  updateOrbitFilter,
   watchSatellite,
   unwatchSatellite,
   saveObserver,
@@ -56,7 +57,7 @@ export default function SatellitesPanel({ viewer, toggleLayer }) {
         `${r.name} ${r.satrec.satnum}`.toLowerCase().includes(state.filters.search.toLowerCase())
     )
   function filter(key, value) {
-    updateOrbit({ filters: { ...state.filters, [key]: value } })
+    updateOrbitFilter(key, value)
   }
   async function run(fn) {
     try {
@@ -171,6 +172,9 @@ export default function SatellitesPanel({ viewer, toggleLayer }) {
             </label>
           ))}
         </div>
+        <p>
+          Editing a range endpoint adjusts its paired bound when needed to keep minimum ≤ maximum.
+        </p>
         <label>
           Satellite cap
           <input
@@ -381,7 +385,9 @@ export default function SatellitesPanel({ viewer, toggleLayer }) {
           Rise/start: {fmt(pass.startMs)}
           {pass.clippedStart ? ' (already above horizon)' : ''}
           <br />
-          Max: {pass.maxElevation.toFixed(1)}° · Set/end: {fmt(pass.endMs)}
+          Max: {pass.maxElevation.toFixed(1)}° at {fmt(pass.maxTimeMs)}
+          <br />
+          Set/end: {fmt(pass.endMs)}
           {pass.clippedEnd ? ' (window clipped)' : ''}
           <br />
           Duration: {(pass.durationSeconds / 60).toFixed(1)} min
